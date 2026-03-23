@@ -4,3 +4,13 @@ spring:
     username: isa
     password: isaisa
     driver-class-name: org.postgresql.Driver
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+cloudinary:
+  cloud-name: dl67iicjf
+  api-key: 478622191115631
+  api-secret: ZKEd6wuMwSn95hH68JwjjVq3vrk
