@@ -11,6 +11,6 @@ spring:
       max-request-size: 5MB
 
 cloudinary:
-  cloud-name: dl67iicjf
-  api-key: 478622191115631
-  api-secret: ZKEd6wuMwSn95hH68JwjjVq3vrk
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}

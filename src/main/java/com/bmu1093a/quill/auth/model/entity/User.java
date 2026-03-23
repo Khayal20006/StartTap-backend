@@ -26,8 +26,4 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    @Column(name = "cv_url")
-    private String cvUrl;
-
-
 }
