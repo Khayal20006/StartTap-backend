@@ -38,9 +38,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/files/upload").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/hotel/getAllHotels", "/hotel/getHotelByID/**").permitAll()
-                        .requestMatchers("/hotel/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/hotel/reservations/**").hasAnyRole("ADMIN","USER")
                         .anyRequest().authenticated()
                 );
 

@@ -4,4 +4,8 @@ public record FileUploadResponse(
         String url,
         String publicId,
         String originalFileName
-) {}
+) {
+    public FileUploadResponse {
+        originalFileName = (originalFileName != null) ? originalFileName : "unknown";
+    }
+}
