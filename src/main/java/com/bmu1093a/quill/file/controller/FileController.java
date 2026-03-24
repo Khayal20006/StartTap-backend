@@ -35,12 +35,12 @@ public class FileController {
         return ResponseEntity.ok(fileUploadService.uploadFile(file));
     }
 
-    @Operation(summary = "Delete CV", description = "Soft deletes the file record in DB")
+    @Operation(summary = "Delete CV", description = "Deletes file from Cloudinary and DB using its publicId")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "File deleted successfully"),
             @ApiResponse(responseCode = "404", description = "File not found")
     })
-    @DeleteMapping
+    @DeleteMapping(value = "/delete", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> deleteFile(
             @RequestParam String publicId
     ) {

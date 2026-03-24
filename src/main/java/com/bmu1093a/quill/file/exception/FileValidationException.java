@@ -1,5 +1,8 @@
 package com.bmu1093a.quill.file.exception;
 
+import lombok.Getter;
+
+@Getter
 public class FileValidationException extends RuntimeException {
 
     private final String code;
@@ -9,7 +12,4 @@ public class FileValidationException extends RuntimeException {
         this.code = code;
     }
 
-    public String getCode() {
-        return code;
-    }
 }

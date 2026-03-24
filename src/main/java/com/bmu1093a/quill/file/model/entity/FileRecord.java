@@ -1,5 +1,6 @@
 package com.bmu1093a.quill.file.model.entity;
 
+import com.bmu1093a.quill.auth.model.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -31,6 +32,10 @@ public class FileRecord {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @PrePersist
     public void prePersist() {

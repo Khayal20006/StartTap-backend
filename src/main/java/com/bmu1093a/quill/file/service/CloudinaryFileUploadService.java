@@ -1,5 +1,7 @@
 package com.bmu1093a.quill.file.service;
 
+import com.bmu1093a.quill.auth.model.entity.User;
+import com.bmu1093a.quill.auth.repository.UserRepository;
 import com.bmu1093a.quill.file.exception.FileOperationException;
 import com.bmu1093a.quill.file.exception.FileValidationException;
 import com.bmu1093a.quill.file.model.dto.FileUploadResponse;
@@ -10,6 +12,8 @@ import com.cloudinary.utils.ObjectUtils;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -36,17 +40,30 @@ public class CloudinaryFileUploadService implements FileUploadService {
     private final Cloudinary cloudinary;
     private final Tika tika;
     private final FileRecordRepository fileRecordRepository;
+    private final UserRepository userRepository;
 
-    public CloudinaryFileUploadService(Cloudinary cloudinary, FileRecordRepository fileRecordRepository) {
+    public CloudinaryFileUploadService(Cloudinary cloudinary,
+                                       FileRecordRepository fileRecordRepository,
+                                       UserRepository userRepository) {
         this.cloudinary = cloudinary;
-        this.tika = new Tika();
         this.fileRecordRepository = fileRecordRepository;
+        this.userRepository = userRepository;
+        this.tika = new Tika();
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public FileUploadResponse uploadFile(MultipartFile file) throws IOException {
         validate(file);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new FileOperationException("UNAUTHORIZED", "User must be logged in to upload files");
+        }
+
+        String email = authentication.getName();
+        User currentUser = (User) userRepository.findByEmail(email)
+                .orElseThrow(() -> new FileOperationException("USER_NOT_FOUND", "User not found with email: " + email));
 
         String originalName = file.getOriginalFilename();
         if (originalName == null) {
@@ -61,7 +78,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
 
         String publicIdWithExtension = "file_" + UUID.randomUUID().toString().substring(0, 8) + extension;
 
-        log.info("Uploading file: '{}'", originalName);
+        log.info("Uploading file for user '{}': '{}'", email, originalName);
 
         Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
                 file.getBytes(),
@@ -81,6 +98,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
                 .url(secureUrl)
                 .publicId(publicId)
                 .originalFileName(originalName)
+                .user(currentUser)
                 .deleted(false)
                 .build();
 
@@ -91,9 +109,20 @@ public class CloudinaryFileUploadService implements FileUploadService {
 
     @Override
     public void deleteFile(String publicId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            throw new FileOperationException("UNAUTHORIZED", "User must be logged in");
+        }
+
+        String email = authentication.getName();
+
         FileRecord record = fileRecordRepository
                 .findByPublicIdAndDeletedFalse(publicId)
                 .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "File not found: " + publicId));
+
+        if (!record.getUser().getEmail().equals(email)) {
+            throw new FileOperationException("ACCESS_DENIED", "You do not have permission to delete this file");
+        }
 
         record.setDeleted(true);
         fileRecordRepository.save(record);
