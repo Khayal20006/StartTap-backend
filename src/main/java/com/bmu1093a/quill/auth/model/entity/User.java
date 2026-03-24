@@ -1,15 +1,22 @@
 package com.bmu1093a.quill.auth.model.entity;
 
+import com.bmu1093a.quill.auth.model.enumeration.Role;
+import com.bmu1093a.quill.job.model.entity.Job;
+import com.bmu1093a.quill.job.model.entity.JobApplication;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Entity
 @Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class User {
 
     @Id
@@ -28,6 +35,13 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private Role role;
+
+    @OneToMany(mappedBy = "employer")
+    private List<Job> createdJobs;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<JobApplication> applications;
+
 
 
 }
