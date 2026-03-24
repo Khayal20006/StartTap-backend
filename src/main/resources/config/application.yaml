@@ -13,12 +13,8 @@ spring:
           lob:
             non_contextual_creation: true
 
-dreamSecretKey2006:
+dreamSecretKey2006: ${SALT_KEY}
 jwt:
   expiration: 900000
   refresh-expiration: 604800000
 
-server:
-  tomcat:
-    relaxed-path-chars: "/"
-    relaxed-query-chars: "/"
