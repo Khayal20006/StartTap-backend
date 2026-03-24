@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/hotel/admin/**").hasRole("ADMIN")
                         .requestMatchers("/hotel/reservations/**").hasAnyRole("ADMIN","USER")
                         .anyRequest().authenticated()
+//                                .anyRequest().permitAll()
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

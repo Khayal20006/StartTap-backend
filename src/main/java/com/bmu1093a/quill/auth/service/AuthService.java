@@ -6,7 +6,7 @@ import com.bmu1093a.quill.auth.model.dto.login.LoginRequestDto;
 import com.bmu1093a.quill.auth.model.dto.login.LoginResponseDto;
 import com.bmu1093a.quill.auth.model.dto.register.RegisterRequestDto;
 import com.bmu1093a.quill.auth.model.dto.register.RegisterResponseDto;
-import com.bmu1093a.quill.auth.model.entity.Role;
+import com.bmu1093a.quill.auth.model.enumeration.Role;
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
 import com.bmu1093a.quill.auth.util.JwtUtil;
@@ -28,18 +28,16 @@ public class AuthService {
             throw new RuntimeException("Email already exists");
         }
 
-        User user = new User();
-        user.setUsername(registerRequestDto.getUsername());
-        user.setEmail(registerRequestDto.getEmail());
-        user.setPassword(passwordEncoder.encode(registerRequestDto.getPassword()));
-        user.setRole(Role.USER);
+        User user = User.builder()
+                .username(registerRequestDto.getUsername())
+                .email(registerRequestDto.getEmail())
+                .password(passwordEncoder.encode(registerRequestDto.getPassword()))
+                .role(Role.USER).build();
 
         userRepository.save(user);
 
         String accessToken = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail(), user.getRole().name());
-
-        registerRequestDto.setPassword(null);
 
         return new RegisterResponseDto(user.getId(),
                 registerRequestDto.getUsername(),
@@ -47,7 +45,7 @@ public class AuthService {
                 user.getRole(),accessToken,refreshToken,"Qeydiyyat ugurlu oldu.");
     }
 
-    public LoginResponseDto login(LoginRequestDto loginRequestDto) {
+    public  LoginResponseDto login(LoginRequestDto loginRequestDto) {
         User user = userRepository.findByEmail(loginRequestDto.getEmail())
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
