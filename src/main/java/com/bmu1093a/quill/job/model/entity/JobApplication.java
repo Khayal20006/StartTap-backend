@@ -11,7 +11,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "job_id"}))
+//@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "job_id"}))
+@Table
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
