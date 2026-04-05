@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
-      id: 20260310-create-users-table
-      author: Khayal Sharifov
+      id: 1
+      author: isa
       changes:
         - createTable:
             tableName: users
@@ -30,5 +30,3 @@ databaseChangeLog:
               - column:
                   name: role
                   type: VARCHAR(50)
-                  constraints:
-                    nullable: false

@@ -1,6 +1,6 @@
 package com.bmu1093a.quill.auth.model.dto.login;
 
-import com.bmu1093a.quill.auth.model.entity.Role;
+import com.bmu1093a.quill.auth.model.enumeration.Role;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
