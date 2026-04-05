@@ -12,12 +12,19 @@ import com.cloudinary.utils.ObjectUtils;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -30,12 +37,14 @@ public class CloudinaryFileUploadService implements FileUploadService {
     private static final List<String> ALLOWED_MIME_TYPES = List.of(
             "application/pdf",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/msword",
             "application/x-tika-ooxml",
-            "application/x-tika-msoffice",
-            "application/zip"
+            "application/x-tika-msoffice"
     );
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+    private static final int CONNECT_TIMEOUT = 5000;
+    private static final int READ_TIMEOUT = 10000;
 
     private final Cloudinary cloudinary;
     private final Tika tika;
@@ -52,51 +61,39 @@ public class CloudinaryFileUploadService implements FileUploadService {
     }
 
     @Override
+    @Transactional
     @SuppressWarnings("unchecked")
     public FileUploadResponse uploadFile(MultipartFile file) throws IOException {
-        validate(file);
+        byte[] fileBytes = validateAndGetBytes(file);
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new FileOperationException("UNAUTHORIZED", "User must be logged in to upload files");
-        }
-
-        String email = authentication.getName();
-        User currentUser = (User) userRepository.findByEmail(email)
-                .orElseThrow(() -> new FileOperationException("USER_NOT_FOUND", "User not found with email: " + email));
+        String email = getCurrentUserEmail();
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new FileOperationException("USER_NOT_FOUND", "User not found: " + email));
 
         String originalName = file.getOriginalFilename();
-        if (originalName == null) {
-            throw new FileValidationException("INVALID_FILE_NAME", "File name cannot be null");
+        String extension = getFileExtension(originalName);
+        String publicIdWithExtension = "cv_" + UUID.randomUUID().toString().replace("-", "") + extension;
+
+        Map<String, Object> uploadResult;
+        try {
+            uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
+                    fileBytes,
+                    ObjectUtils.asMap(
+                            "folder", "quill/cv",
+                            "resource_type", "raw",
+                            "public_id", publicIdWithExtension,
+                            "type", "upload",
+                            "access_mode", "public"
+                    )
+            );
+        } catch (Exception e) {
+            log.error("Cloudinary upload failed", e);
+            throw new FileOperationException("UPLOAD_FAILED", "Failed to upload file to cloud storage");
         }
-
-        String extension = "";
-        int lastIndex = originalName.lastIndexOf(".");
-        if (lastIndex != -1) {
-            extension = originalName.substring(lastIndex);
-        }
-
-        String publicIdWithExtension = "file_" + UUID.randomUUID().toString().substring(0, 8) + extension;
-
-        log.info("Uploading file for user '{}': '{}'", email, originalName);
-
-        Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
-                file.getBytes(),
-                ObjectUtils.asMap(
-                        "folder", "quill/cv",
-                        "resource_type", "raw",
-                        "public_id", publicIdWithExtension,
-                        "use_filename", true,
-                        "unique_filename", false
-                )
-        );
-
-        String secureUrl = String.valueOf(uploadResult.get("secure_url"));
-        String publicId = String.valueOf(uploadResult.get("public_id"));
 
         FileRecord record = FileRecord.builder()
-                .url(secureUrl)
-                .publicId(publicId)
+                .url(String.valueOf(uploadResult.get("secure_url")))
+                .publicId(String.valueOf(uploadResult.get("public_id")))
                 .originalFileName(originalName)
                 .user(currentUser)
                 .deleted(false)
@@ -104,47 +101,153 @@ public class CloudinaryFileUploadService implements FileUploadService {
 
         fileRecordRepository.save(record);
 
-        return new FileUploadResponse(secureUrl, publicId, originalName);
+        return new FileUploadResponse(record.getUrl(), record.getPublicId(), record.getOriginalFileName());
     }
 
     @Override
+    @Transactional
     public void deleteFile(String publicId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            throw new FileOperationException("UNAUTHORIZED", "User must be logged in");
-        }
-
-        String email = authentication.getName();
-
+        String email = getCurrentUserEmail();
         FileRecord record = fileRecordRepository
                 .findByPublicIdAndDeletedFalse(publicId)
                 .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "File not found: " + publicId));
 
         if (!record.getUser().getEmail().equals(email)) {
-            throw new FileOperationException("ACCESS_DENIED", "You do not have permission to delete this file");
+            throw new FileOperationException("ACCESS_DENIED", "Permission denied");
+        }
+
+        try {
+            cloudinary.uploader().destroy(record.getPublicId(), ObjectUtils.emptyMap());
+        } catch (IOException e) {
+            log.error("Failed to delete file from Cloudinary: {}", publicId, e);
+            throw new FileOperationException("DELETE_FAILED", "Failed to delete file from cloud storage");
         }
 
         record.setDeleted(true);
         fileRecordRepository.save(record);
     }
 
-    private void validate(MultipartFile file) throws IOException {
+    @Override
+    public ResponseEntity<byte[]> previewCv() throws IOException {
+        String email = getCurrentUserEmail();
+        FileRecord record = fileRecordRepository
+                .findFirstByUserEmailAndDeletedFalseOrderByIdDesc(email)
+                .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "No active CV found in your profile"));
+
+        return downloadAndPrepareResponse(record);
+    }
+
+    @Override
+    public FileUploadResponse getLastUploadedCv() {
+        String email = getCurrentUserEmail();
+        FileRecord record = fileRecordRepository
+                .findFirstByUserEmailAndDeletedFalseOrderByIdDesc(email)
+                .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "No active CV found in your profile"));
+
+        return new FileUploadResponse(record.getUrl(), record.getPublicId(), record.getOriginalFileName());
+    }
+
+    private ResponseEntity<byte[]> downloadAndPrepareResponse(FileRecord record) throws IOException {
+        String url = record.getUrl();
+        String fileName = record.getOriginalFileName();
+
+        if (fileName == null || fileName.trim().isEmpty()) {
+            fileName = "cv_document";
+        }
+
+        byte[] bytes = downloadFromUrl(url);
+        MediaType contentType = determineContentType(fileName);
+        String finalFileName = ensureExtension(fileName, contentType);
+        String contentDisposition = String.format("attachment; filename=\"%s\"", finalFileName);
+
+        return ResponseEntity.ok()
+                .contentType(contentType)
+                .header("Content-Disposition", contentDisposition)
+                .body(bytes);
+    }
+
+    private byte[] downloadFromUrl(String urlString) throws IOException {
+        URL fileUrl = new URL(urlString);
+        HttpURLConnection connection = (HttpURLConnection) fileUrl.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(CONNECT_TIMEOUT);
+        connection.setReadTimeout(READ_TIMEOUT);
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != 200) {
+            log.error("Cloudinary returned error code: {}", responseCode);
+            throw new FileOperationException("DOWNLOAD_FAILED", "File not found in cloud storage");
+        }
+
+        try (InputStream is = connection.getInputStream()) {
+            return is.readAllBytes();
+        }
+    }
+
+    private MediaType determineContentType(String fileName) {
+        String lowerName = fileName.toLowerCase();
+        if (lowerName.endsWith(".pdf")) {
+            return MediaType.APPLICATION_PDF;
+        } else if (lowerName.endsWith(".docx")) {
+            return MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        } else if (lowerName.endsWith(".doc")) {
+            return MediaType.parseMediaType("application/msword");
+        }
+        return MediaType.APPLICATION_OCTET_STREAM;
+    }
+
+    private String ensureExtension(String fileName, MediaType contentType) {
+        if (fileName.contains(".")) {
+            return fileName;
+        }
+        if (contentType.equals(MediaType.APPLICATION_PDF)) {
+            return fileName + ".pdf";
+        } else if (contentType.toString().contains("wordprocessingml")) {
+            return fileName + ".docx";
+        } else if (contentType.toString().contains("msword")) {
+            return fileName + ".doc";
+        }
+        return fileName;
+    }
+
+    private String getCurrentUserEmail() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            throw new FileOperationException("UNAUTHORIZED", "Authentication required");
+        }
+        return auth.getName();
+    }
+
+    private byte[] validateAndGetBytes(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new FileValidationException("FILE_EMPTY", "File is empty");
         }
 
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new FileValidationException("FILE_TOO_LARGE", "File size exceeds 5MB limit");
+            throw new FileValidationException("FILE_TOO_LARGE", "Maximum file size is 5MB");
         }
 
-        String detectedType = tika.detect(file.getInputStream());
+        byte[] bytes = file.getBytes();
+        String detectedType;
+        try (InputStream is = new ByteArrayInputStream(bytes)) {
+            detectedType = tika.detect(is);
+        }
+
         String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        boolean isAllowedMime = ALLOWED_MIME_TYPES.contains(detectedType);
+        boolean isAllowedExtension = fileName.endsWith(".pdf") || fileName.endsWith(".docx") || fileName.endsWith(".doc");
 
-        boolean hasValidExtension = fileName.endsWith(".pdf") || fileName.endsWith(".docx");
-        boolean hasValidMime = ALLOWED_MIME_TYPES.contains(detectedType);
-
-        if (!hasValidMime && !hasValidExtension) {
-            throw new FileValidationException("INVALID_FILE_TYPE", "Only PDF and DOCX files are accepted");
+        if (!isAllowedMime && !isAllowedExtension) {
+            throw new FileValidationException("INVALID_FILE_TYPE", "Invalid file type detected: " + detectedType);
         }
+
+        return bytes;
+    }
+
+    private String getFileExtension(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return "";
+        }
+        return fileName.substring(fileName.lastIndexOf("."));
     }
 }

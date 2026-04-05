@@ -39,6 +39,7 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/files/upload").authenticated()
                         .requestMatchers("/api/files/delete").authenticated()
+                        .requestMatchers("/api/files/my-cv").authenticated()
 
                         .requestMatchers(
                                 "/v3/api-docs/**",
