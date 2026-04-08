@@ -1,8 +1,0 @@
-databaseChangeLog:
-  - changeSet:
-      id: 3
-      author: Khayal Sharifov
-      changes:
-        - dropColumn:
-            tableName: users
-            columnName: cv_url
