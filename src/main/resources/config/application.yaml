@@ -1,8 +1,6 @@
 spring:
   application:
     name: quill
-  profiles:
-    active: dev
   jpa:
     hibernate:
       ddl-auto: none
@@ -13,8 +11,26 @@ spring:
           lob:
             non_contextual_creation: true
 
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/quill-db}
+    username: ${SPRING_DATASOURCE_USERNAME:isa}
+    password: ${SPRING_DATASOURCE_PASSWORD:isaisa}
+    driver-class-name: org.postgresql.Driver
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
 dreamSecretKey2006: ${SALT_KEY}
 jwt:
   expiration: 900000
   refresh-expiration: 604800000
+
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
 
