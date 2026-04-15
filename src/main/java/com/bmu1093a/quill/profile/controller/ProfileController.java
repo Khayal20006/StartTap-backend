@@ -1,4 +1,4 @@
-package com.bmu1093a.quill.profile.model.controller;
+package com.bmu1093a.quill.profile.controller;
 
 import com.bmu1093a.quill.profile.model.dto.ProfileResponseDto;
 import com.bmu1093a.quill.profile.model.dto.ProfileRequestDto;
