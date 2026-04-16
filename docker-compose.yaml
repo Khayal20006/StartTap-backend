@@ -1,4 +1,30 @@
 services:
+  backend:
+    image: isameddin35/starttap-back
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SALT_KEY: myDreamSecretKeyItIsEnoughForMe2006!
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/quill-db
+      SPRING_DATASOURCE_USERNAME: isa
+      SPRING_DATASOURCE_PASSWORD: isaisa
+
+      CLOUDINARY_CLOUD_NAME: dl67iicjf
+      CLOUDINARY_API_KEY: 478622191115631
+      CLOUDINARY_API_SECRET: ZKEd6wuMwSn95hH68JwjjVq3vrk
+
+    ports:
+      - "8080:8080"
+
+        #  frontend:
+        #    image: isameddin35/starttap-front
+        #    container_name: frontend
+        #    ports:
+        #      - "5173:5173"
+
+
   db:
     image: postgres:latest
     container_name: my-postgres
@@ -10,6 +36,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U isa -d quill-db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
+
