@@ -30,7 +30,7 @@ public class ProfileService {
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .email(user.getEmail())
-                .role(user.getRole())
+//                .role(user.getRole())
                 .cvUrl(lastCv.map(FileRecord::getUrl).orElse(null))
                 .cvFileName(lastCv.map(FileRecord::getOriginalFileName).orElse(null))
                 .build();
