@@ -18,11 +18,11 @@ services:
     ports:
       - "8080:8080"
 
-        #  frontend:
-        #    image: isameddin35/starttap-front
-        #    container_name: frontend
-        #    ports:
-        #      - "5173:5173"
+  frontend:
+    image: isameddin35/starttap-front
+    container_name: frontend
+    ports:
+      - "5173:5173"
 
 
   db:
