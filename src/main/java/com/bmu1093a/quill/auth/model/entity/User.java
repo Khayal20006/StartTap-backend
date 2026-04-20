@@ -1,8 +1,8 @@
 package com.bmu1093a.quill.auth.model.entity;
 
 import com.bmu1093a.quill.auth.model.enumeration.Role;
-import com.bmu1093a.quill.job.model.entity.Job;
-import com.bmu1093a.quill.job.model.entity.JobApplication;
+import com.bmu1093a.quill.startup.model.entity.Startup;
+import com.bmu1093a.quill.vacancy.model.entity.VacancyApplication;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -39,11 +39,14 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    @OneToMany(mappedBy = "employer")
-    private List<Job> createdJobs;
+//    @OneToMany(mappedBy = "employer")
+//    private List<Job> createdJobs;
+
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
+    private List<Startup> startups;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<JobApplication> applications;
+    private List<VacancyApplication> applications;
 
 
 

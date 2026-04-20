@@ -2,7 +2,7 @@ package com.bmu1093a.quill.auth.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
-import com.bmu1093a.quill.job.service.UserLookupService;
+import com.bmu1093a.quill.vacancy.service.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,10 +23,5 @@ public class UserLookupServiceImpl implements UserLookupService {
 
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-    }
-
-    @Override
-    public User findByEmail() {
-        return null;
     }
 }
