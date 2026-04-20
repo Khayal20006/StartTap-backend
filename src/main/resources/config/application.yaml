@@ -3,7 +3,7 @@ spring:
     name: quill
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -22,6 +22,8 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 5MB
+  level:
+    root: debug
 
 dreamSecretKey2006: ${SALT_KEY}
 jwt:

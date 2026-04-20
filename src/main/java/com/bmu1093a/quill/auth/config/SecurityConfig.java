@@ -36,7 +36,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers( HttpMethod.GET, "/api/jobs").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/vacancies").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/startups").permitAll()
                         .requestMatchers("/api/files/upload").authenticated()
                         .requestMatchers("/api/files/delete").authenticated()
                         .requestMatchers("/api/files/my-cv").authenticated()
@@ -59,7 +60,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOriginPatterns(List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:4173", "https://*.trycloudflare.com"));
+        config.setAllowedOriginPatterns(List.of(
+//                "*",
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:4173",
+                "https://*.trycloudflare.com",
+                "http://192.168.0.105:5173",
+                "http://frontend:5173"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.addExposedHeader("Authorization");
