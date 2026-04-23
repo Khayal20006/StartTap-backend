@@ -1,6 +1,7 @@
 package com.bmu1093a.quill.startup.controller;
 
 import com.bmu1093a.quill.startup.model.dto.request.StartupRequestDto;
+import com.bmu1093a.quill.startup.model.dto.request.StartupUpdateRequestDto;
 import com.bmu1093a.quill.startup.model.dto.respone.StartupResponseDto;
 import com.bmu1093a.quill.startup.service.StartupService;
 import lombok.RequiredArgsConstructor;
@@ -32,4 +33,17 @@ public class StartupController {
         System.out.println(startup.getOwner());
         return ResponseEntity.ok(startup);
     }
+
+    @PutMapping("{id}")
+    public StartupResponseDto updateStartup(
+            @RequestBody StartupUpdateRequestDto startupUpdateRequestDto,
+            @PathVariable Long id) {
+        return startupService.updateStartup(id, startupUpdateRequestDto);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<List<StartupResponseDto>> getMyStartups() {
+        return ResponseEntity.ok(startupService.getMyStartups());
+    }
+
 }

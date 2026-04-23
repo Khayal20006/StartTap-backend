@@ -3,6 +3,7 @@ package com.bmu1093a.quill.startup.service;
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.startup.mapper.StartupMapper;
 import com.bmu1093a.quill.startup.model.dto.request.StartupRequestDto;
+import com.bmu1093a.quill.startup.model.dto.request.StartupUpdateRequestDto;
 import com.bmu1093a.quill.startup.model.dto.respone.StartupResponseDto;
 import com.bmu1093a.quill.startup.model.entity.Startup;
 import com.bmu1093a.quill.startup.repository.StartupRepository;
@@ -52,4 +53,21 @@ public class StartupService {
         return startupMapper.toDto(startup);
 
     }
-}
+
+    public StartupResponseDto updateStartup(Long id, StartupUpdateRequestDto startupUpdateRequestDto) {
+        Startup startup = startupRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Startup not found"));
+        startup.setName(startupUpdateRequestDto.getName());
+        startup.setTagline(startupUpdateRequestDto.getTagline());
+        startup.setDescription(startupUpdateRequestDto.getDescription());
+        startup.setCategory(startupUpdateRequestDto.getCategory());
+        startup.setStage(startupUpdateRequestDto.getStage());
+        startup.setWebsite(startupUpdateRequestDto.getWebsite());
+        startupRepository.save(startup);
+        return startupMapper.toDto(startup);
+    }
+
+    public List<StartupResponseDto> getMyStartups() {
+        return startupRepository.findByOwner(getCurrentUser())
+                .stream().map(startupMapper::toDto).toList();
+    }}
