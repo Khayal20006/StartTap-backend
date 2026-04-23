@@ -2,6 +2,11 @@ databaseChangeLog:
   - changeSet:
       id: 4-create-file-records
       author: isa
+      preconditions:
+        - onFail: MARK_RAN
+          not:
+            tableExists:
+              tableName: file_records
       changes:
         - createTable:
             tableName: file_records
