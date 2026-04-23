@@ -18,6 +18,4 @@ public class StartupRequestDto {
     private StartupStage stage;      // idea, pre-seed, seed, etc.
 
     private String website;
-
-
 }
