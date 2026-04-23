@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260422-1
+      author: Khayal Sharifov
+      preconditions:
+        - onFail: MARK_RAN
+          not:
+            columnExists:
+              tableName: users
+              columnName: phone_number
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: phone_number
+                  type: varchar(20)
+              - column:
+                  name: linkedin_url
+                  type: varchar(255)
+              - column:
+                  name: github_url
+                  type: varchar(255)

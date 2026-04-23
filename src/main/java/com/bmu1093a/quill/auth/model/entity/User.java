@@ -39,15 +39,22 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-//    @OneToMany(mappedBy = "employer")
+    //    @OneToMany(mappedBy = "employer")
 //    private List<Job> createdJobs;
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
+    @Column(name = "linkedin_url")
+    private String linkedinUrl;
+
+    @Column(name = "github_url")
+    private String githubUrl;
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
     private List<Startup> startups;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<VacancyApplication> applications;
-
 
 
 }
