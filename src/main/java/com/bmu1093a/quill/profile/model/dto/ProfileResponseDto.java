@@ -15,4 +15,7 @@ public class ProfileResponseDto {
     private String email;
     private String cvUrl;
     private String cvFileName;
+    private String phoneNumber;
+    private String linkedinUrl;
+    private String githubUrl;
 }
