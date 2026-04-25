@@ -4,10 +4,26 @@
 #  push:
 #    branches: [ "master" ]
 #  pull_request:
+#    branches: [ "master" ]
 #
 #jobs:
 #  build-and-analyze:
 #    runs-on: ubuntu-latest
+#
+#    services:
+#      postgres:
+#        image: postgres:latest
+#        env:
+#          POSTGRES_DB: quill-db
+#          POSTGRES_USER: isa
+#          POSTGRES_PASSWORD: isaisa
+#        ports:
+#          - 5432:5432
+#        options: >-
+#          --health-cmd="pg_isready -U isa"
+#          --health-interval=10s
+#          --health-timeout=5s
+#          --health-retries=5
 #
 #    steps:
 #      # 1. Checkout code
@@ -30,25 +46,30 @@
 #            ~/.gradle/wrapper
 #          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
 #
-#      # 4. Build project
+#      # 4. Build project (WITH DB ENV)
 #      - name: Build with Gradle
 #        run: ./gradlew clean build
+#        env:
+#          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/quill-db
+#          SPRING_DATASOURCE_USERNAME: isa
+#          SPRING_DATASOURCE_PASSWORD: isaisa
 #
 #      # 5. SonarQube analysis
 #      - name: SonarQube Scan
-#        run: ./gradlew sonarqube
+#        run: ./gradlew sonar
 #        env:
 #          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 #          SONAR_ORG: ${{ secrets.SONAR_ORG }}
 #          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
 #
-#      # 6. Quality Gate check (IMPORTANT)
-#      - name: Sonar Quality Gate Check
-#        uses: sonarsource/sonarqube-quality-gate-action@master
-#        env:
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-#        with:
-#          scanMetadataReportFile: build/sonar/report-task.txt
+##      # 6. Quality Gate check
+##      - name: Sonar Quality Gate Check
+##        uses: sonarsource/sonarqube-quality-gate-action@master
+##        env:
+##          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+##        with:
+##          scanMetadataReportFile: build/sonar/report-task.txt
+
 
 name: CI Pipeline
 
@@ -62,9 +83,12 @@ jobs:
   build-and-analyze:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: true
+
     services:
       postgres:
-        image: postgres:latest
+        image: postgres:15
         env:
           POSTGRES_DB: quill-db
           POSTGRES_USER: isa
@@ -89,35 +113,43 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      # 3. Cache Gradle
+      # 3. Grant execute permission for Gradle
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      # 4. Cache Gradle dependencies
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}
 
-      # 4. Build project (WITH DB ENV)
-      - name: Build with Gradle
-        run: ./gradlew clean build
+      # 5. Wait for Postgres to be ready
+      - name: Wait for DB
+        run: |
+          for i in {1..10}; do
+            pg_isready -h localhost -p 5432 -U isa && break
+            sleep 2
+          done
+
+      # 6. Build + Test + Coverage + Sonar
+      - name: Build, Test, Coverage & Sonar
+        run: ./gradlew clean build jacocoTestReport sonar
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/quill-db
           SPRING_DATASOURCE_USERNAME: isa
           SPRING_DATASOURCE_PASSWORD: isaisa
-
-      # 5. SonarQube analysis
-      - name: SonarQube Scan
-        run: ./gradlew sonar
-        env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORG: ${{ secrets.SONAR_ORG }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
 
-#      # 6. Quality Gate check
-#      - name: Sonar Quality Gate Check
-#        uses: sonarsource/sonarqube-quality-gate-action@master
-#        env:
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-#        with:
-#          scanMetadataReportFile: build/sonar/report-task.txt
+      # 7. Enforce Quality Gate
+      - name: Sonar Quality Gate Check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
