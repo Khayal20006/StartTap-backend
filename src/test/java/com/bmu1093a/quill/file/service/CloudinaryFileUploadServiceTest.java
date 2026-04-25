@@ -155,7 +155,7 @@ class CloudinaryFileUploadServiceTest {
 
         assertDoesNotThrow(() -> service.deleteFile("cv_123"));
 
-        verify(fileRecordRepository, times(1)).save(any(FileRecord.class));
+        verify(fileRecordRepository, times(2)).save(any(FileRecord.class));
     }
 
     @Test
