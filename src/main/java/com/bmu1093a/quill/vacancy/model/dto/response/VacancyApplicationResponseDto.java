@@ -18,4 +18,5 @@ public class VacancyApplicationResponseDto {
     private String jobTitle;
     private ApplicationStatus status;
     private LocalDateTime appliedAt;
+
 }
