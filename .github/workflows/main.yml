@@ -1,3 +1,55 @@
+#name: CI Pipeline
+#
+#on:
+#  push:
+#    branches: [ "master" ]
+#  pull_request:
+#
+#jobs:
+#  build-and-analyze:
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      # 1. Checkout code
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      # 2. Setup Java
+#      - name: Set up JDK
+#        uses: actions/setup-java@v4
+#        with:
+#          distribution: 'temurin'
+#          java-version: '21'
+#
+#      # 3. Cache Gradle
+#      - name: Cache Gradle
+#        uses: actions/cache@v4
+#        with:
+#          path: |
+#            ~/.gradle/caches
+#            ~/.gradle/wrapper
+#          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+#
+#      # 4. Build project
+#      - name: Build with Gradle
+#        run: ./gradlew clean build
+#
+#      # 5. SonarQube analysis
+#      - name: SonarQube Scan
+#        run: ./gradlew sonarqube
+#        env:
+#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#          SONAR_ORG: ${{ secrets.SONAR_ORG }}
+#          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+#
+#      # 6. Quality Gate check (IMPORTANT)
+#      - name: Sonar Quality Gate Check
+#        uses: sonarsource/sonarqube-quality-gate-action@master
+#        env:
+#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#        with:
+#          scanMetadataReportFile: build/sonar/report-task.txt
+
 name: CI Pipeline
 
 on:
@@ -8,6 +60,21 @@ on:
 jobs:
   build-and-analyze:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: quill-db
+          POSTGRES_USER: isa
+          POSTGRES_PASSWORD: isaisa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U quill"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       # 1. Checkout code
@@ -30,17 +97,23 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
 
-      # 4. Build project
+      # 4. Build project (WITH DB ENV)
       - name: Build with Gradle
         run: ./gradlew clean build
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/quill
+          SPRING_DATASOURCE_USERNAME: quill
+          SPRING_DATASOURCE_PASSWORD: quill
 
       # 5. SonarQube analysis
       - name: SonarQube Scan
         run: ./gradlew sonarqube
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORG: ${{ secrets.SONAR_ORG }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
 
-      # 6. Quality Gate check (IMPORTANT)
+      # 6. Quality Gate check
       - name: Sonar Quality Gate Check
         uses: sonarsource/sonarqube-quality-gate-action@master
         env:
