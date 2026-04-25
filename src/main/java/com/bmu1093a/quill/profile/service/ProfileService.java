@@ -3,12 +3,11 @@ package com.bmu1093a.quill.profile.service;
 import com.bmu1093a.quill.auth.error.UserNotFoundException;
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
-import com.bmu1093a.quill.auth.service.AuthService;
 import com.bmu1093a.quill.file.exception.FileOperationException;
 import com.bmu1093a.quill.file.model.entity.FileRecord;
 import com.bmu1093a.quill.file.repo.FileRecordRepository;
-import com.bmu1093a.quill.profile.model.dto.ProfileResponseDto;
 import com.bmu1093a.quill.profile.model.dto.ProfileRequestDto;
+import com.bmu1093a.quill.profile.model.dto.ProfileResponseDto;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -76,7 +75,7 @@ public class ProfileService {
                 .lastName(user.getLastName())
                 .email(user.getEmail())
                 .cvUrl(lastCv.map(FileRecord::getUrl).orElse(null))
-                .cvFileName(lastCv.map(FileRecord::getOriginalFileName).orElse(null))                .phoneNumber(user.getPhoneNumber())
+                .cvFileName(lastCv.map(FileRecord::getOriginalFileName).orElse(null)).phoneNumber(user.getPhoneNumber())
                 .linkedinUrl(user.getLinkedinUrl())
                 .githubUrl(user.getGithubUrl())
                 .build();

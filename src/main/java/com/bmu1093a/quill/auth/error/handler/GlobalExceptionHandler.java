@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleUserNotFound(UserNotFoundException e, WebRequest request) {
-        return createErrorResponse(e.getMessage(), HttpStatus.NOT_FOUND, request);
+        return createErrorResponse(e.getMessage(), HttpStatus.NOT_FOUND);
     }
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
     }
 
 
-    private ResponseEntity<Map<String, Object>> createErrorResponse(String message, HttpStatus status, WebRequest request) {
+    private ResponseEntity<Map<String, Object>> createErrorResponse(String message, HttpStatus status) {
         Map<String, Object> response = new HashMap<>();
         response.put("message", message);
         response.put("status", status.value());

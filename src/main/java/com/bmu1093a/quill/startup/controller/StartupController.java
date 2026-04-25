@@ -30,7 +30,6 @@ public class StartupController {
     @PostMapping
     public ResponseEntity<StartupResponseDto> createStartup(@RequestBody StartupRequestDto startupRequestDto) {
         StartupResponseDto startup = startupService.createStartup(startupRequestDto);
-        System.out.println(startup.getOwner());
         return ResponseEntity.ok(startup);
     }
 

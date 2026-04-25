@@ -29,15 +29,21 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http)  {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/startups/*").permitAll()
+                        .requestMatchers("/api/startups/*/vacancies").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/vacancies/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/vacancies").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/startups").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
+
+
                         .requestMatchers("/api/files/upload").authenticated()
                         .requestMatchers("/api/files/delete").authenticated()
                         .requestMatchers("/api/files/my-cv").authenticated()
@@ -79,7 +85,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config)  {
         return config.getAuthenticationManager();
     }
 }

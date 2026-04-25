@@ -30,13 +30,12 @@ public class VacancyApplicationService {
     ) {
         User currentUser = userLookupService.getCurrentUser();
 
-//        Long vacancyId = vacancyApplicationRequestDto.getVacancyId();
         Long userId = currentUser.getId();
 
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
                 .orElseThrow(() -> new RuntimeException("Vacancy not found"));
 
-        if (!vacancy.getIsActive()) {
+        if (Boolean.FALSE.equals(vacancy.getIsActive())) {
             throw new IllegalStateException("Vacancy is not active");
         }
 

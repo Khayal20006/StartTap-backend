@@ -13,4 +13,5 @@ public class StartupUpdateRequestDto {
     private StartupCategory category;
     private StartupStage stage;
     private String website;
+    private Boolean isActive;
 }

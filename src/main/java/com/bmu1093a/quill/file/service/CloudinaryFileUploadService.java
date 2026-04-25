@@ -42,7 +42,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
             "application/x-tika-msoffice"
     );
 
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024L;
     private static final int CONNECT_TIMEOUT = 5000;
     private static final int READ_TIMEOUT = 10000;
 
@@ -76,7 +76,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
 
         Map<String, Object> uploadResult;
         try {
-            uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
+            uploadResult =  cloudinary.uploader().upload(
                     fileBytes,
                     ObjectUtils.asMap(
                             "folder", "quill/cv",
@@ -91,7 +91,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
             throw new FileOperationException("UPLOAD_FAILED", "Failed to upload file to cloud storage");
         }
 
-        FileRecord record = FileRecord.builder()
+        FileRecord fileRecord = FileRecord.builder()
                 .url(String.valueOf(uploadResult.get("secure_url")))
                 .publicId(String.valueOf(uploadResult.get("public_id")))
                 .originalFileName(originalName)
@@ -99,57 +99,57 @@ public class CloudinaryFileUploadService implements FileUploadService {
                 .deleted(false)
                 .build();
 
-        fileRecordRepository.save(record);
+        fileRecordRepository.save(fileRecord);
 
-        return new FileUploadResponse(record.getUrl(), record.getPublicId(), record.getOriginalFileName());
+        return new FileUploadResponse(fileRecord.getUrl(), fileRecord.getPublicId(), fileRecord.getOriginalFileName());
     }
 
     @Override
     @Transactional
     public void deleteFile(String publicId) {
         String email = getCurrentUserEmail();
-        FileRecord record = fileRecordRepository
+        FileRecord fileRecord = fileRecordRepository
                 .findByPublicIdAndDeletedFalse(publicId)
                 .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "File not found: " + publicId));
 
-        if (!record.getUser().getEmail().equals(email)) {
+        if (!fileRecord.getUser().getEmail().equals(email)) {
             throw new FileOperationException("ACCESS_DENIED", "Permission denied");
         }
 
         try {
-            cloudinary.uploader().destroy(record.getPublicId(), ObjectUtils.emptyMap());
+            cloudinary.uploader().destroy(fileRecord.getPublicId(), ObjectUtils.emptyMap());
         } catch (IOException e) {
             log.error("Failed to delete file from Cloudinary: {}", publicId, e);
             throw new FileOperationException("DELETE_FAILED", "Failed to delete file from cloud storage");
         }
 
-        record.setDeleted(true);
-        fileRecordRepository.save(record);
+        fileRecord.setDeleted(true);
+        fileRecordRepository.save(fileRecord);
     }
 
     @Override
     public ResponseEntity<byte[]> previewCv() throws IOException {
         String email = getCurrentUserEmail();
-        FileRecord record = fileRecordRepository
+        FileRecord fileRecord = fileRecordRepository
                 .findFirstByUserEmailAndDeletedFalseOrderByIdDesc(email)
                 .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "No active CV found in your profile"));
 
-        return downloadAndPrepareResponse(record);
+        return downloadAndPrepareResponse(fileRecord);
     }
 
     @Override
     public FileUploadResponse getLastUploadedCv() {
         String email = getCurrentUserEmail();
-        FileRecord record = fileRecordRepository
+        FileRecord fileRecord = fileRecordRepository
                 .findFirstByUserEmailAndDeletedFalseOrderByIdDesc(email)
                 .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "No active CV found in your profile"));
 
-        return new FileUploadResponse(record.getUrl(), record.getPublicId(), record.getOriginalFileName());
+        return new FileUploadResponse(fileRecord.getUrl(), fileRecord.getPublicId(), fileRecord.getOriginalFileName());
     }
 
-    private ResponseEntity<byte[]> downloadAndPrepareResponse(FileRecord record) throws IOException {
-        String url = record.getUrl();
-        String fileName = record.getOriginalFileName();
+    private ResponseEntity<byte[]> downloadAndPrepareResponse(FileRecord fileRecord) throws IOException {
+        String url = fileRecord.getUrl();
+        String fileName = fileRecord.getOriginalFileName();
 
         if (fileName == null || fileName.trim().isEmpty()) {
             fileName = "cv_document";

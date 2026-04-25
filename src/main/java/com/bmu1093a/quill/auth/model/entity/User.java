@@ -39,8 +39,6 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    //    @OneToMany(mappedBy = "employer")
-//    private List<Job> createdJobs;
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
