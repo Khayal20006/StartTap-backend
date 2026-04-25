@@ -62,7 +62,6 @@ class VacancyApplicationServiceTest {
         User user = user(1L);
         Vacancy vacancy = vacancy(true);
 
-        VacancyApplication app = application();
 
         when(userLookupService.getCurrentUser())
                 .thenReturn(user);
