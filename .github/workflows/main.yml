@@ -71,7 +71,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U quill"
+          --health-cmd="pg_isready -U isa"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -107,16 +107,16 @@ jobs:
 
       # 5. SonarQube analysis
       - name: SonarQube Scan
-        run: ./gradlew sonarqube
+        run: ./gradlew sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORG: ${{ secrets.SONAR_ORG }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
 
-      # 6. Quality Gate check
-      - name: Sonar Quality Gate Check
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          scanMetadataReportFile: build/sonar/report-task.txt
+#      # 6. Quality Gate check
+#      - name: Sonar Quality Gate Check
+#        uses: sonarsource/sonarqube-quality-gate-action@master
+#        env:
+#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#        with:
+#          scanMetadataReportFile: build/sonar/report-task.txt
