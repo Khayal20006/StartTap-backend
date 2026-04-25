@@ -51,10 +51,6 @@ class VacancyApplicationServiceTest {
         return v;
     }
 
-    private VacancyApplication application() {
-        return new VacancyApplication();
-    }
-
     // ---------------- APPLY SUCCESS ----------------
 
     @Test

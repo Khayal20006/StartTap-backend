@@ -141,17 +141,17 @@ class CloudinaryFileUploadServiceTest {
     void deleteFile_success() {
         mockCloudinary();
 
-        FileRecord record = FileRecord.builder()
+        FileRecord fileRecord = FileRecord.builder()
                 .publicId("cv_123")
                 .deleted(false)
                 .user(user)
                 .build();
 
         when(fileRecordRepository.findByPublicIdAndDeletedFalse("cv_123"))
-                .thenReturn(Optional.of(record));
+                .thenReturn(Optional.of(fileRecord));
 
         when(fileRecordRepository.save(any(FileRecord.class)))
-                .thenReturn(record);
+                .thenReturn(fileRecord);
 
         assertDoesNotThrow(() -> service.deleteFile("cv_123"));
 
@@ -164,14 +164,14 @@ class CloudinaryFileUploadServiceTest {
                 .email("other@mail.com")
                 .build();
 
-        FileRecord record = FileRecord.builder()
+        FileRecord fileRecord = FileRecord.builder()
                 .publicId("cv_123")
                 .deleted(false)
                 .user(otherUser)
                 .build();
 
         when(fileRecordRepository.findByPublicIdAndDeletedFalse("cv_123"))
-                .thenReturn(Optional.of(record));
+                .thenReturn(Optional.of(fileRecord));
 
         assertThrows(FileOperationException.class,
                 () -> service.deleteFile("cv_123"));
