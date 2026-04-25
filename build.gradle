@@ -15,11 +15,19 @@ java {
     }
 }
 
+//sonar {
+//    properties {
+//        property "sonar.projectKey", "StartTap"
+//        property "sonar.host.url", "http://localhost:9000"
+//        property "sonar.login", System.getenv("SONAR_TOKEN")
+//    }
+//}
+
 sonar {
     properties {
-        property "sonar.projectKey", "StartTap"
-        property "sonar.host.url", "http://localhost:9000"
-        property "sonar.login", "sqp_adb775d9535d4156e754fb6c00da1718df5f5dd0"
+        property "sonar.projectKey", System.getenv("SONAR_PROJECT_KEY")
+        property "sonar.organization", System.getenv("SONAR_ORG")
+        property "sonar.host.url", "https://sonarcloud.io"
     }
 }
 
