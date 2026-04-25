@@ -39,6 +39,8 @@ jobs:
         run: ./gradlew sonarqube
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORG: ${{ secrets.SONAR_ORG }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
 
       # 6. Quality Gate check (IMPORTANT)
       - name: Sonar Quality Gate Check
