@@ -249,5 +249,11 @@ public class CloudinaryFileUploadService implements FileUploadService {
             return "";
         }
         return fileName.substring(fileName.lastIndexOf("."));
+//        return fileName.substring(fileName.lastIndexOf("."));
+//        return fileName.substring(fileName.lastIndexOf("."));
+//        return fileName.substring(fileName.lastIndexOf("."));
+//        return fileName.substring(fileName.lastIndexOf("."));
+//        return fileName.substring(fileName.lastIndexOf("."));
+//        return fileName.substring(fileName.lastIndexOf("."));
     }
 }
