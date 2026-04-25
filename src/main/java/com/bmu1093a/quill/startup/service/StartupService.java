@@ -22,8 +22,12 @@ public class StartupService {
     private final StartupMapper startupMapper;
 
 
-    private User getCurrentUser() {
-        return userLookupService.getCurrentUser();
+    private User getCurrentUserOrNull() {
+        try {
+            return userLookupService.getCurrentUser();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 
@@ -38,14 +42,26 @@ public class StartupService {
         Startup startup = startupRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Startup not found"));
 
-        return startupMapper.toDto(startup);
+        StartupResponseDto startupResponseDto = startupMapper.toDto(startup);
+
+        User currentUser = getCurrentUserOrNull();
+
+        boolean isOwner = false;
+
+        if (currentUser != null) {
+            isOwner = startup.getOwner().getId().equals(currentUser.getId());
+        }
+
+        startupResponseDto.setIsOwner(isOwner);
+
+        return startupResponseDto;
     }
 
     public StartupResponseDto createStartup(StartupRequestDto startupRequestDto) {
 
         Startup startup = startupMapper.toStartup(startupRequestDto);
 
-        startup.setOwner(getCurrentUser());
+        startup.setOwner(getCurrentUserOrNull());
 
         startupRepository.save(startup);
 
@@ -57,17 +73,22 @@ public class StartupService {
     public StartupResponseDto updateStartup(Long id, StartupUpdateRequestDto startupUpdateRequestDto) {
         Startup startup = startupRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Startup not found"));
+
         startup.setName(startupUpdateRequestDto.getName());
         startup.setTagline(startupUpdateRequestDto.getTagline());
         startup.setDescription(startupUpdateRequestDto.getDescription());
         startup.setCategory(startupUpdateRequestDto.getCategory());
         startup.setStage(startupUpdateRequestDto.getStage());
         startup.setWebsite(startupUpdateRequestDto.getWebsite());
+        startup.setIsActive(startupUpdateRequestDto.getIsActive());
+
+
         startupRepository.save(startup);
         return startupMapper.toDto(startup);
     }
 
     public List<StartupResponseDto> getMyStartups() {
-        return startupRepository.findByOwner(getCurrentUser())
+        return startupRepository.findByOwner(getCurrentUserOrNull())
                 .stream().map(startupMapper::toDto).toList();
-    }}
+    }
+}

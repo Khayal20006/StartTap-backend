@@ -28,9 +28,6 @@ public class Vacancy {
 
     private BigDecimal salary;
 
-//    @ManyToOne
-//    @JoinColumn(name = "employer_id")
-//    private User employer;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "startup_id")

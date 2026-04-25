@@ -36,5 +36,7 @@ public class StartupResponseDto {
 
     private OwnerResponseDto owner;
 
+    private Boolean isOwner;
+
 
 }

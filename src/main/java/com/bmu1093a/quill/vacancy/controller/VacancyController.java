@@ -16,7 +16,7 @@ public class VacancyController {
 
     private final VacancyService vacancyService;
 
-    @PostMapping
+    @PostMapping("vacancies")
     public VacancyResponseDto createVacancy(@RequestBody VacancyRequestDto vacancyRequestDto) {
         return vacancyService.createVacancy(vacancyRequestDto);
     }

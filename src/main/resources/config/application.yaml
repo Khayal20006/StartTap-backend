@@ -25,14 +25,26 @@ spring:
   level:
     root: debug
 
-dreamSecretKey2006: ${SALT_KEY}
+dreamSecretKey2006: ${SALT_KEY:test-secret-key}
 jwt:
   expiration: 900000
   refresh-expiration: 604800000
 
 
 cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME}
-  api-key: ${CLOUDINARY_API_KEY}
-  api-secret: ${CLOUDINARY_API_SECRET}
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:test-cloud}
+  api-key: ${CLOUDINARY_API_KEY:test-key}
+  api-secret: ${CLOUDINARY_API_SECRET:test-secret}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+
+
 

@@ -23,12 +23,34 @@ public class VacancyService {
     private final StartupRepository startupRepository;
     private final VacancyMapper vacancyMapper;
 
+    private User getCurrentUserOrNull() {
+        try {
+            return userLookupService.getCurrentUser();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
 
     public VacancyResponseDto getVacancy(Long id) {
 
         Vacancy vacancy = vacancyRepository.findById(id).orElseThrow(() -> new RuntimeException("Vacancy not found"));
 
-        return vacancyMapper.toDto(vacancy);
+        VacancyResponseDto vacancyResponseDto = vacancyMapper.toDto(vacancy);
+
+        User currentUser = getCurrentUserOrNull();
+
+        boolean isOwner = false;
+
+        if (currentUser != null) {
+            isOwner = vacancy.getStartup().getOwner().getId()
+                    .equals(currentUser.getId());
+        }
+
+        vacancyResponseDto.setIsOwner(isOwner);
+
+
+        return vacancyResponseDto;
 
     }
 

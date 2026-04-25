@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
+    id "org.sonarqube" version "6.0.0.5145"
 }
 
 group = 'com.bmu1093a'
@@ -11,6 +12,14 @@ description = 'Yaxsi oglanin yaxsi komandasi olar. -Isameddin, Xeyal'
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+sonar {
+    properties {
+        property "sonar.projectKey", "StartTap"
+        property "sonar.host.url", "http://localhost:9000"
+        property "sonar.login", "sqp_adb775d9535d4156e754fb6c00da1718df5f5dd0"
     }
 }
 
@@ -35,6 +44,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.apache.tika:tika-core:2.9.1'
     implementation(platform("me.paulschwarz:spring-dotenv-bom:5.0.1"))
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     developmentOnly("me.paulschwarz:springboot4-dotenv:5.0.1")
 
 

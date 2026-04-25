@@ -28,4 +28,6 @@ public class VacancyResponseDto {
     private LocalDateTime createdAt;
 
     private Boolean isActive;
+
+    private Boolean isOwner;
 }
