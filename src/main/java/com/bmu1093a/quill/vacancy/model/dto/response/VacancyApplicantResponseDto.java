@@ -23,4 +23,5 @@ public class VacancyApplicantResponseDto {
 
     private ApplicationStatus status;
     private LocalDateTime appliedAt;
+
 }
