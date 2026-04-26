@@ -84,7 +84,20 @@ public class StartupService {
 
 
         startupRepository.save(startup);
-        return startupMapper.toDto(startup);
+
+        User currentUser = getCurrentUserOrNull();
+
+        StartupResponseDto startupResponseDto = startupMapper.toDto(startup);
+
+        boolean isOwner = false;
+
+        if (currentUser != null) {
+            isOwner = startup.getOwner().getId().equals(currentUser.getId());
+        }
+
+        startupResponseDto.setIsOwner(isOwner);
+
+        return startupResponseDto;
     }
 
     public List<StartupResponseDto> getMyStartups() {
