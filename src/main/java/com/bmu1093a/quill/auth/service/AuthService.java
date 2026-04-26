@@ -5,11 +5,12 @@ import com.bmu1093a.quill.auth.error.WrongPasswordException;
 import com.bmu1093a.quill.auth.model.dto.login.LoginRequestDto;
 import com.bmu1093a.quill.auth.model.dto.login.LoginResponseDto;
 import com.bmu1093a.quill.auth.model.dto.register.RegisterRequestDto;
-import com.bmu1093a.quill.auth.model.dto.register.RegisterResponseDto;
 import com.bmu1093a.quill.auth.model.enumeration.Role;
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
 import com.bmu1093a.quill.auth.util.JwtUtil;
+import com.bmu1093a.quill.email.service.EmailService;
+import com.bmu1093a.quill.verification.service.VerificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,9 +22,11 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final VerificationService verificationService;
+    private final EmailService emailService;
     private final JwtUtil jwtUtil;
 
-    public RegisterResponseDto register(RegisterRequestDto registerRequestDto) {
+    public void register(RegisterRequestDto registerRequestDto) {
         if (userRepository.findByEmail(registerRequestDto.getEmail()).isPresent()) {
             throw new RuntimeException("Email already exists");
         }
@@ -36,13 +39,11 @@ public class AuthService {
 
         userRepository.save(user);
 
-        String accessToken = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail(), user.getRole().name());
+        String token = verificationService.createToken(user);
 
-        return new RegisterResponseDto(user.getId(),
-                registerRequestDto.getUsername(),
-                registerRequestDto.getEmail(),
-                user.getRole(),accessToken,refreshToken,"Qeydiyyat ugurlu oldu.");
+        emailService.sendVerificationEmail(user.getEmail(), token);
+
+
     }
 
     public  LoginResponseDto login(LoginRequestDto loginRequestDto) {

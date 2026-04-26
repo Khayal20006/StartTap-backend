@@ -32,5 +32,21 @@ public class VerificationService {
 
     }
 
+    public void verify(String token) {
+
+        VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid Token"));
+
+        if (verificationToken.getExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Token Expired");
+        }
+
+        User user = verificationToken.getUser();
+
+        user.setEnabled(true);
+
+        verificationTokenRepository.delete(verificationToken);
+    }
+
 
 }

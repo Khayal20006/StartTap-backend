@@ -25,6 +25,28 @@ spring:
   level:
     root: debug
 
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: isaqurbanov112@gmail.com
+    # Use an App Password, NOT your regular account password
+    password: nfpnpsuncpcfkjim
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        # Recommended: Set timeouts to avoid blocking threads
+        connectiontimeout: 5000
+        timeout: 3000
+        writetimeout: 5000
+
+
 dreamSecretKey2006: ${SALT_KEY:test-secret-key}
 jwt:
   expiration: 900000
