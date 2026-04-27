@@ -1,7 +1,9 @@
 package com.bmu1093a.quill.verification.service;
 
 
+import com.bmu1093a.quill.auth.model.dto.login.LoginResponseDto;
 import com.bmu1093a.quill.auth.model.entity.User;
+import com.bmu1093a.quill.auth.util.JwtUtil;
 import com.bmu1093a.quill.verification.model.entity.VerificationToken;
 import com.bmu1093a.quill.verification.repository.VerificationTokenRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import java.util.UUID;
 public class VerificationService {
 
     private final VerificationTokenRepository verificationTokenRepository;
+    private final JwtUtil jwtUtil;
 
     public String createToken(User user) {
 
@@ -32,7 +35,7 @@ public class VerificationService {
 
     }
 
-    public void verify(String token) {
+    public LoginResponseDto verifyAndLogin(String token) {
 
         VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
                 .orElseThrow(() -> new RuntimeException("Invalid Token"));
@@ -46,6 +49,23 @@ public class VerificationService {
         user.setEnabled(true);
 
         verificationTokenRepository.delete(verificationToken);
+
+
+        String accessToken = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail(), user.getRole().name());
+
+
+        return new LoginResponseDto(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole(),
+                accessToken,
+                refreshToken,
+                "Email verified and logged in"
+        );
+
+
     }
 
 

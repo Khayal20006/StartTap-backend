@@ -54,6 +54,10 @@ public class AuthService {
             throw new WrongPasswordException("Wrong password");
         }
 
+        if (!user.isEnabled()) {
+            throw new RuntimeException("Email not verified");
+        }
+
         String accessToken = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail(), user.getRole().name());
 

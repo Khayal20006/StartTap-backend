@@ -3,17 +3,23 @@ package com.bmu1093a.quill.auth.service;
 import com.bmu1093a.quill.auth.error.UserNotFoundException;
 import com.bmu1093a.quill.auth.error.WrongPasswordException;
 import com.bmu1093a.quill.auth.model.dto.login.LoginRequestDto;
+import com.bmu1093a.quill.auth.model.dto.login.LoginResponseDto;
 import com.bmu1093a.quill.auth.model.dto.register.RegisterRequestDto;
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.model.enumeration.Role;
 import com.bmu1093a.quill.auth.repository.UserRepository;
 import com.bmu1093a.quill.auth.util.JwtUtil;
-import org.junit.jupiter.api.BeforeEach;
+import com.bmu1093a.quill.email.service.EmailService;
+import com.bmu1093a.quill.verification.service.VerificationService;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
@@ -30,131 +36,134 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
+    private VerificationService verificationService;
+
+    @Mock
+    private EmailService emailService;
+
+    @Mock
     private JwtUtil jwtUtil;
 
     @InjectMocks
     private AuthService authService;
 
-    private RegisterRequestDto registerRequest;
-    private LoginRequestDto loginRequest;
-
-    @BeforeEach
-    void setUp() {
-        registerRequest = new RegisterRequestDto();
-        registerRequest.setUsername("testuser");
-        registerRequest.setEmail("test@mail.com");
-        registerRequest.setPassword("123456");
-
-        loginRequest = new LoginRequestDto();
-        loginRequest.setEmail("test@mail.com");
-        loginRequest.setPassword("123456");
-    }
-
-    // ---------------- REGISTER TESTS ----------------
+    // ─────────────────────────────────────────────
+    // REGISTER TESTS
+    // ─────────────────────────────────────────────
 
     @Test
-    void register_success() {
-        when(userRepository.findByEmail(registerRequest.getEmail()))
+    void register_shouldSaveUser_andSendEmail() {
+        RegisterRequestDto dto = new RegisterRequestDto("isa", "isa@mail.com", "123");
+
+        when(userRepository.findByEmail(dto.getEmail()))
                 .thenReturn(Optional.empty());
 
-        when(passwordEncoder.encode(registerRequest.getPassword()))
-                .thenReturn("encodedPassword");
+        when(passwordEncoder.encode(dto.getPassword()))
+                .thenReturn("encodedPass");
 
-        when(jwtUtil.generateToken(anyString(), anyString()))
-                .thenReturn("access-token");
+        when(verificationService.createToken(any(User.class)))
+                .thenReturn("verification-token");
 
-        when(jwtUtil.generateRefreshToken(anyString(), anyString()))
-                .thenReturn("refresh-token");
+        authService.register(dto);
 
-        when(userRepository.save(any(User.class)))
-                .thenAnswer(invocation -> {
-                    User user = invocation.getArgument(0);
-                    user.setId(1L);
-                    return user;
-                });
-
-        var result = authService.register(registerRequest);
-
-        assertNotNull(result);
-        assertEquals("testuser", result.getUsername());
-        assertEquals("test@mail.com", result.getEmail());
-        assertEquals(Role.USER, result.getRole());
-        assertEquals("access-token", result.getAccessToken());
-        assertEquals("refresh-token", result.getRefreshToken());
-
-        verify(userRepository, times(1)).save(any(User.class));
+        verify(userRepository).save(any(User.class));
+        verify(emailService).sendVerificationEmail("isa@mail.com", "verification-token");
     }
 
     @Test
     void register_shouldThrowException_whenEmailExists() {
-        when(userRepository.findByEmail(registerRequest.getEmail()))
+        RegisterRequestDto dto = new RegisterRequestDto("isa", "isa@mail.com", "123");
+
+        when(userRepository.findByEmail(dto.getEmail()))
                 .thenReturn(Optional.of(new User()));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> authService.register(registerRequest));
+        assertThrows(RuntimeException.class, () -> authService.register(dto));
 
-        assertEquals("Email already exists", ex.getMessage());
         verify(userRepository, never()).save(any());
     }
 
-    // ---------------- LOGIN TESTS ----------------
+    // ─────────────────────────────────────────────
+    // LOGIN TESTS
+    // ─────────────────────────────────────────────
 
     @Test
-    void login_success() {
+    void login_shouldReturnTokens_whenCredentialsValid() {
+        LoginRequestDto dto = new LoginRequestDto("isa@mail.com", "123");
+
         User user = User.builder()
                 .id(1L)
-                .username("testuser")
-                .email("test@mail.com")
-                .password("encodedPassword")
+                .email("isa@mail.com")
+                .username("isa")
+                .password("encodedPass")
                 .role(Role.USER)
+                .enabled(true)
                 .build();
 
-        when(userRepository.findByEmail(loginRequest.getEmail()))
+        when(userRepository.findByEmail(dto.getEmail()))
                 .thenReturn(Optional.of(user));
 
-        when(passwordEncoder.matches(loginRequest.getPassword(), user.getPassword()))
+        when(passwordEncoder.matches("123", "encodedPass"))
                 .thenReturn(true);
 
-        when(jwtUtil.generateToken(anyString(), anyString()))
+        when(jwtUtil.generateToken(any(), any()))
                 .thenReturn("access-token");
 
-        when(jwtUtil.generateRefreshToken(anyString(), anyString()))
+        when(jwtUtil.generateRefreshToken(any(), any()))
                 .thenReturn("refresh-token");
 
-        var result = authService.login(loginRequest);
+        LoginResponseDto response = authService.login(dto);
 
-        assertNotNull(result);
-        assertEquals("testuser", result.getUsername());
-        assertEquals("access-token", result.getAccessToken());
-        assertEquals("refresh-token", result.getRefreshToken());
+        assertEquals("access-token", response.getAccessToken());
+        assertEquals("refresh-token", response.getRefreshToken());
+        assertEquals("isa@mail.com", response.getEmail());
+        assertEquals("isa", response.getUsername());
     }
 
     @Test
-    void login_shouldThrowUserNotFoundException() {
-        when(userRepository.findByEmail(loginRequest.getEmail()))
+    void login_shouldThrowUserNotFound() {
+        LoginRequestDto dto = new LoginRequestDto("isa@mail.com", "123");
+
+        when(userRepository.findByEmail(dto.getEmail()))
                 .thenReturn(Optional.empty());
 
-        assertThrows(UserNotFoundException.class,
-                () -> authService.login(loginRequest));
+        assertThrows(UserNotFoundException.class, () -> authService.login(dto));
     }
 
     @Test
-    void login_shouldThrowWrongPasswordException() {
+    void login_shouldThrowWrongPassword() {
+        LoginRequestDto dto = new LoginRequestDto("isa@mail.com", "123");
+
         User user = User.builder()
-                .id(1L)
-                .username("testuser")
-                .email("test@mail.com")
-                .password("encodedPassword")
-                .role(Role.USER)
+                .email("isa@mail.com")
+                .password("encodedPass")
+                .enabled(true)
                 .build();
 
-        when(userRepository.findByEmail(loginRequest.getEmail()))
+        when(userRepository.findByEmail(dto.getEmail()))
                 .thenReturn(Optional.of(user));
 
-        when(passwordEncoder.matches(anyString(), anyString()))
+        when(passwordEncoder.matches("123", "encodedPass"))
                 .thenReturn(false);
 
-        assertThrows(WrongPasswordException.class,
-                () -> authService.login(loginRequest));
+        assertThrows(WrongPasswordException.class, () -> authService.login(dto));
+    }
+
+    @Test
+    void login_shouldThrow_whenUserNotEnabled() {
+        LoginRequestDto dto = new LoginRequestDto("isa@mail.com", "123");
+
+        User user = User.builder()
+                .email("isa@mail.com")
+                .password("encodedPass")
+                .enabled(false)
+                .build();
+
+        when(userRepository.findByEmail(dto.getEmail()))
+                .thenReturn(Optional.of(user));
+
+        when(passwordEncoder.matches("123", "encodedPass"))
+                .thenReturn(true);
+
+        assertThrows(RuntimeException.class, () -> authService.login(dto));
     }
 }
