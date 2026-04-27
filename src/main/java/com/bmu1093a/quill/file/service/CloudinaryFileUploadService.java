@@ -164,7 +164,12 @@ public class CloudinaryFileUploadService implements FileUploadService {
         byte[] bytes = downloadFromUrl(url);
         MediaType contentType = determineContentType(fileName);
         String finalFileName = ensureExtension(fileName, contentType);
-        String contentDisposition = String.format("attachment; filename=\"%s\"", finalFileName);
+
+
+        String asciiName = finalFileName.replaceAll("[^\\x00-\\x7F]", "_");
+        String encodedName = java.net.URLEncoder.encode(finalFileName, java.nio.charset.StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        String contentDisposition = "attachment; filename=\"" + asciiName + "\"; filename*=UTF-8''" + encodedName;
 
         return ResponseEntity.ok()
                 .contentType(contentType)
