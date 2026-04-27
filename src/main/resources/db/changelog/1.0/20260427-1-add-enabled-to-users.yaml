@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-enabled-column-to-users
+      author: isa
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

@@ -42,6 +42,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/vacancies").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/startups").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/prometheus").permitAll()
 
 
                         .requestMatchers("/api/files/upload").authenticated()

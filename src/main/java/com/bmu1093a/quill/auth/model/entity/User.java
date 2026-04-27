@@ -55,4 +55,7 @@ public class User {
     private List<VacancyApplication> applications;
 
 
+    @Builder.Default
+    private boolean enabled = false;
+
 }
