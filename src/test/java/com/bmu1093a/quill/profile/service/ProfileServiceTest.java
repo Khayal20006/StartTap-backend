@@ -1,9 +1,9 @@
 package com.bmu1093a.quill.profile.service;
 
+import com.bmu1093a.quill.common.exception.UnauthorizedActionException;
 import com.bmu1093a.quill.common.exception.UserNotFoundException;
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
-import com.bmu1093a.quill.common.exception.FileOperationException;
 import com.bmu1093a.quill.file.model.entity.FileRecord;
 import com.bmu1093a.quill.file.repo.FileRecordRepository;
 import com.bmu1093a.quill.profile.model.dto.ProfileRequestDto;
@@ -135,7 +135,7 @@ class ProfileServiceTest {
     void getProfile_shouldThrow_whenUserNotAuthenticated() {
         SecurityContextHolder.clearContext();
 
-        assertThrows(FileOperationException.class,
+        assertThrows(UnauthorizedActionException.class,
                 () -> profileService.getProfile());
     }
 
