@@ -23,7 +23,6 @@ public class StartupService {
     private final UserLookupService userLookupService;
     private final StartupMapper startupMapper;
 
-
     private User getCurrentUserOrNull() {
         try {
             return userLookupService.getCurrentUser();
@@ -32,44 +31,30 @@ public class StartupService {
         }
     }
 
-
     public List<StartupResponseDto> getAllStartups() {
-        List<Startup> startups = startupRepository.findAll();
-
-        return startups.stream().map(startupMapper::toDto).toList();
+        return startupRepository.findAll()
+                .stream().map(startupMapper::toDto).toList();
     }
 
     public StartupResponseDto getStartupById(Long id) {
-
         Startup startup = startupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Startup not found"));
 
-        StartupResponseDto startupResponseDto = startupMapper.toDto(startup);
+        StartupResponseDto dto = startupMapper.toDto(startup);
 
         User currentUser = getCurrentUserOrNull();
+        boolean isOwner = currentUser != null &&
+                startup.getOwner().getId().equals(currentUser.getId());
+        dto.setIsOwner(isOwner);
 
-        boolean isOwner = false;
-
-        if (currentUser != null) {
-            isOwner = startup.getOwner().getId().equals(currentUser.getId());
-        }
-
-        startupResponseDto.setIsOwner(isOwner);
-
-        return startupResponseDto;
+        return dto;
     }
 
     public StartupResponseDto createStartup(StartupRequestDto startupRequestDto) {
-
         Startup startup = startupMapper.toStartup(startupRequestDto);
-
         startup.setOwner(userLookupService.getCurrentUser());
-
         startupRepository.save(startup);
-
-
         return startupMapper.toDto(startup);
-
     }
 
     public StartupResponseDto updateStartup(Long id, StartupUpdateRequestDto startupUpdateRequestDto) {
@@ -78,7 +63,6 @@ public class StartupService {
 
         User currentUser = userLookupService.getCurrentUser();
         if (!startup.getOwner().getId().equals(currentUser.getId())) {
-
             throw new UnauthorizedActionException("You are not the owner of this startup");
         }
 
@@ -90,22 +74,11 @@ public class StartupService {
         startup.setWebsite(startupUpdateRequestDto.getWebsite());
         startup.setIsActive(startupUpdateRequestDto.getIsActive());
 
-
         startupRepository.save(startup);
 
-        User currentUser = getCurrentUserOrNull();
-
-        StartupResponseDto startupResponseDto = startupMapper.toDto(startup);
-
-        boolean isOwner = false;
-
-        if (currentUser != null) {
-            isOwner = startup.getOwner().getId().equals(currentUser.getId());
-        }
-
-        startupResponseDto.setIsOwner(isOwner);
-
-        return startupResponseDto;
+        StartupResponseDto dto = startupMapper.toDto(startup);
+        dto.setIsOwner(true);
+        return dto;
     }
 
     public List<StartupResponseDto> getMyStartups() {
