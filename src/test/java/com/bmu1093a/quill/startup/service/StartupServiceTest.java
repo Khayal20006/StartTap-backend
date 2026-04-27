@@ -1,6 +1,8 @@
 package com.bmu1093a.quill.startup.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
+import com.bmu1093a.quill.common.exception.ResourceNotFoundException;
+import com.bmu1093a.quill.common.exception.UnauthorizedActionException;
 import com.bmu1093a.quill.startup.mapper.StartupMapper;
 import com.bmu1093a.quill.startup.model.dto.request.StartupRequestDto;
 import com.bmu1093a.quill.startup.model.dto.request.StartupUpdateRequestDto;
@@ -8,15 +10,18 @@ import com.bmu1093a.quill.startup.model.dto.respone.StartupResponseDto;
 import com.bmu1093a.quill.startup.model.entity.Startup;
 import com.bmu1093a.quill.startup.repository.StartupRepository;
 import com.bmu1093a.quill.vacancy.service.UserLookupService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,161 +39,186 @@ class StartupServiceTest {
     @InjectMocks
     private StartupService startupService;
 
-    private User user(Long id) {
-        return User.builder().id(id).build();
+    private User owner;
+    private User otherUser;
+    private Startup startup;
+    private StartupResponseDto startupResponseDto;
+
+    @BeforeEach
+    void setUp() {
+        owner = new User();
+        owner.setId(1L);
+        owner.setEmail("owner@test.com");
+
+        otherUser = new User();
+        otherUser.setId(2L);
+        otherUser.setEmail("other@test.com");
+
+        startup = new Startup();
+        startup.setId(10L);
+        startup.setName("Test Startup");
+        startup.setOwner(owner);
+
+        startupResponseDto = new StartupResponseDto();
+        startupResponseDto.setId(10L);
+        startupResponseDto.setName("Test Startup");
     }
 
-    private Startup startup(Long id, User owner) {
-        Startup s = new Startup();
-        s.setId(id);
-        s.setOwner(owner);
-        return s;
-    }
-
-    private StartupResponseDto dto() {
-        return new StartupResponseDto();
-    }
-
-    // ---------------- GET ALL ----------------
+    // ── getAllStartups ────────────────────────────────────────────────────────
 
     @Test
-    void getAllStartups_success() {
-        Startup s1 = new Startup();
-        Startup s2 = new Startup();
-
-        when(startupRepository.findAll())
-                .thenReturn(List.of(s1, s2));
-
-        when(startupMapper.toDto(any()))
-                .thenReturn(new StartupResponseDto());
+    void getAllStartups_shouldReturnAllStartups() {
+        when(startupRepository.findAll()).thenReturn(List.of(startup));
+        when(startupMapper.toDto(startup)).thenReturn(startupResponseDto);
 
         List<StartupResponseDto> result = startupService.getAllStartups();
 
-        assertEquals(2, result.size());
-        verify(startupRepository).findAll();
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getName()).isEqualTo("Test Startup");
     }
 
-    // ---------------- GET BY ID ----------------
+    @Test
+    void getAllStartups_shouldReturnEmptyList_whenNoStartups() {
+        when(startupRepository.findAll()).thenReturn(List.of());
+
+        List<StartupResponseDto> result = startupService.getAllStartups();
+
+        assertThat(result).isEmpty();
+    }
+
+    // ── getStartupById ────────────────────────────────────────────────────────
 
     @Test
-    void getStartupById_owner_true() {
-        User owner = user(1L);
-        Startup startup = startup(10L, owner);
-
-        when(startupRepository.findById(10L))
-                .thenReturn(Optional.of(startup));
-
-        when(startupMapper.toDto(startup))
-                .thenReturn(dto());
-
-        when(userLookupService.getCurrentUser())
-                .thenReturn(owner);
+    void getStartupById_shouldReturnDto_withIsOwnerTrue_whenCurrentUserIsOwner() {
+        when(startupRepository.findById(10L)).thenReturn(Optional.of(startup));
+        when(startupMapper.toDto(startup)).thenReturn(startupResponseDto);
+        when(userLookupService.getCurrentUser()).thenReturn(owner);
 
         StartupResponseDto result = startupService.getStartupById(10L);
 
-        assertNotNull(result);
-        assertTrue(result.getIsOwner());
+        assertThat(result.getIsOwner()).isTrue();
     }
 
     @Test
-    void getStartupById_owner_false() {
-        User owner = user(1L);
-        User other = user(2L);
-
-        Startup startup = startup(10L, owner);
-
-        when(startupRepository.findById(10L))
-                .thenReturn(Optional.of(startup));
-
-        when(startupMapper.toDto(startup))
-                .thenReturn(dto());
-
-        when(userLookupService.getCurrentUser())
-                .thenReturn(other);
+    void getStartupById_shouldReturnDto_withIsOwnerFalse_whenCurrentUserIsNotOwner() {
+        when(startupRepository.findById(10L)).thenReturn(Optional.of(startup));
+        when(startupMapper.toDto(startup)).thenReturn(startupResponseDto);
+        when(userLookupService.getCurrentUser()).thenReturn(otherUser);
 
         StartupResponseDto result = startupService.getStartupById(10L);
 
-        assertFalse(result.getIsOwner());
+        assertThat(result.getIsOwner()).isFalse();
     }
 
     @Test
-    void getStartupById_shouldThrow_whenNotFound() {
-        when(startupRepository.findById(10L))
-                .thenReturn(Optional.empty());
+    void getStartupById_shouldReturnDto_withIsOwnerFalse_whenNotAuthenticated() {
+        when(startupRepository.findById(10L)).thenReturn(Optional.of(startup));
+        when(startupMapper.toDto(startup)).thenReturn(startupResponseDto);
+        when(userLookupService.getCurrentUser()).thenThrow(new UnauthorizedActionException("Authentication required"));
 
-        assertThrows(RuntimeException.class,
-                () -> startupService.getStartupById(10L));
+        StartupResponseDto result = startupService.getStartupById(10L);
+
+        assertThat(result.getIsOwner()).isFalse();
     }
 
-    // ---------------- CREATE ----------------
-
     @Test
-    void createStartup_success() {
-        StartupRequestDto request = new StartupRequestDto();
+    void getStartupById_shouldThrow_whenStartupNotFound() {
+        when(startupRepository.findById(99L)).thenReturn(Optional.empty());
 
-        Startup startup = new Startup();
-
-        when(startupMapper.toStartup(request))
-                .thenReturn(startup);
-
-        when(userLookupService.getCurrentUser())
-                .thenReturn(user(1L));
-
-        when(startupRepository.save(any()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        when(startupMapper.toDto(any()))
-                .thenReturn(new StartupResponseDto());
-
-        StartupResponseDto result = startupService.createStartup(request);
-
-        assertNotNull(result);
-        verify(startupRepository).save(any(Startup.class));
+        assertThrows(ResourceNotFoundException.class,
+                () -> startupService.getStartupById(99L));
     }
 
-    // ---------------- UPDATE ----------------
+    // ── createStartup ─────────────────────────────────────────────────────────
 
     @Test
-    void updateStartup_success() {
-        Startup existing = new Startup();
+    void createStartup_shouldSaveAndReturnDto() {
+        StartupRequestDto requestDto = new StartupRequestDto();
+        when(startupMapper.toStartup(requestDto)).thenReturn(startup);
+        when(userLookupService.getCurrentUser()).thenReturn(owner);
+        when(startupRepository.save(startup)).thenReturn(startup);
+        when(startupMapper.toDto(startup)).thenReturn(startupResponseDto);
 
-        StartupUpdateRequestDto request = new StartupUpdateRequestDto();
-        request.setName("New Name");
+        StartupResponseDto result = startupService.createStartup(requestDto);
 
-        when(startupRepository.findById(1L))
-                .thenReturn(Optional.of(existing));
-
-        when(startupRepository.save(existing))
-                .thenReturn(existing);
-
-        when(startupMapper.toDto(existing))
-                .thenReturn(new StartupResponseDto());
-
-        StartupResponseDto result = startupService.updateStartup(1L, request);
-
-        assertNotNull(result);
-        assertEquals("New Name", existing.getName());
+        assertThat(result).isNotNull();
+        assertThat(startup.getOwner()).isEqualTo(owner);
+        verify(startupRepository).save(startup);
     }
 
-    // ---------------- MY STARTUPS ----------------
+    @Test
+    void createStartup_shouldThrow_whenNotAuthenticated() {
+        StartupRequestDto requestDto = new StartupRequestDto();
+        when(startupMapper.toStartup(requestDto)).thenReturn(startup);
+        when(userLookupService.getCurrentUser()).thenThrow(new UnauthorizedActionException("Authentication required"));
+
+        assertThrows(UnauthorizedActionException.class,
+                () -> startupService.createStartup(requestDto));
+
+        verify(startupRepository, never()).save(any());
+    }
+
+    // ── updateStartup ─────────────────────────────────────────────────────────
 
     @Test
-    void getMyStartups_success() {
-        User user = user(1L);
+    void updateStartup_shouldUpdate_whenCurrentUserIsOwner() {
+        StartupUpdateRequestDto updateDto = new StartupUpdateRequestDto();
+        updateDto.setName("Updated Name");
+        updateDto.setTagline("New tagline");
+        updateDto.setDescription("New desc");
+        updateDto.setIsActive(true);
 
-        Startup s = startup(1L, user);
+        when(startupRepository.findById(10L)).thenReturn(Optional.of(startup));
+        when(userLookupService.getCurrentUser()).thenReturn(owner);
+        when(startupRepository.save(startup)).thenReturn(startup);
+        when(startupMapper.toDto(startup)).thenReturn(startupResponseDto);
 
-        when(userLookupService.getCurrentUser())
-                .thenReturn(user);
+        StartupResponseDto result = startupService.updateStartup(10L, updateDto);
 
-        when(startupRepository.findByOwner(user))
-                .thenReturn(List.of(s));
+        assertThat(result).isNotNull();
+        verify(startupRepository).save(startup);
+    }
 
-        when(startupMapper.toDto(any()))
-                .thenReturn(new StartupResponseDto());
+    @Test
+    void updateStartup_shouldThrow_whenCurrentUserIsNotOwner() {
+        StartupUpdateRequestDto updateDto = new StartupUpdateRequestDto();
+
+        when(startupRepository.findById(10L)).thenReturn(Optional.of(startup));
+        when(userLookupService.getCurrentUser()).thenReturn(otherUser);
+
+        assertThrows(UnauthorizedActionException.class,
+                () -> startupService.updateStartup(10L, updateDto));
+
+        verify(startupRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStartup_shouldThrow_whenStartupNotFound() {
+        when(startupRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> startupService.updateStartup(99L, new StartupUpdateRequestDto()));
+    }
+
+    // ── getMyStartups ─────────────────────────────────────────────────────────
+
+    @Test
+    void getMyStartups_shouldReturnCurrentUserStartups() {
+        when(userLookupService.getCurrentUser()).thenReturn(owner);
+        when(startupRepository.findByOwner(owner)).thenReturn(List.of(startup));
+        when(startupMapper.toDto(startup)).thenReturn(startupResponseDto);
 
         List<StartupResponseDto> result = startupService.getMyStartups();
 
-        assertEquals(1, result.size());
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getName()).isEqualTo("Test Startup");
+    }
+
+    @Test
+    void getMyStartups_shouldThrow_whenNotAuthenticated() {
+        when(userLookupService.getCurrentUser()).thenThrow(new UnauthorizedActionException("Authentication required"));
+
+        assertThrows(UnauthorizedActionException.class,
+                () -> startupService.getMyStartups());
     }
 }
