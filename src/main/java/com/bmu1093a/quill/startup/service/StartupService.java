@@ -1,6 +1,8 @@
 package com.bmu1093a.quill.startup.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
+import com.bmu1093a.quill.common.exception.ResourceNotFoundException;
+import com.bmu1093a.quill.common.exception.UnauthorizedActionException;
 import com.bmu1093a.quill.startup.mapper.StartupMapper;
 import com.bmu1093a.quill.startup.model.dto.request.StartupRequestDto;
 import com.bmu1093a.quill.startup.model.dto.request.StartupUpdateRequestDto;
@@ -25,7 +27,7 @@ public class StartupService {
     private User getCurrentUserOrNull() {
         try {
             return userLookupService.getCurrentUser();
-        } catch (Exception e) {
+        } catch (UnauthorizedActionException e) {
             return null;
         }
     }
@@ -40,7 +42,7 @@ public class StartupService {
     public StartupResponseDto getStartupById(Long id) {
 
         Startup startup = startupRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Startup not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Startup not found"));
 
         StartupResponseDto startupResponseDto = startupMapper.toDto(startup);
 
@@ -61,7 +63,7 @@ public class StartupService {
 
         Startup startup = startupMapper.toStartup(startupRequestDto);
 
-        startup.setOwner(getCurrentUserOrNull());
+        startup.setOwner(userLookupService.getCurrentUser());
 
         startupRepository.save(startup);
 
@@ -72,7 +74,13 @@ public class StartupService {
 
     public StartupResponseDto updateStartup(Long id, StartupUpdateRequestDto startupUpdateRequestDto) {
         Startup startup = startupRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Startup not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Startup not found"));
+
+        User currentUser = userLookupService.getCurrentUser();
+        if (!startup.getOwner().getId().equals(currentUser.getId())) {
+
+            throw new UnauthorizedActionException("You are not the owner of this startup");
+        }
 
         startup.setName(startupUpdateRequestDto.getName());
         startup.setTagline(startupUpdateRequestDto.getTagline());
@@ -88,7 +96,7 @@ public class StartupService {
     }
 
     public List<StartupResponseDto> getMyStartups() {
-        return startupRepository.findByOwner(getCurrentUserOrNull())
+        return startupRepository.findByOwner(userLookupService.getCurrentUser())
                 .stream().map(startupMapper::toDto).toList();
     }
 }

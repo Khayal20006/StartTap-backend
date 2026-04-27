@@ -1,7 +1,7 @@
 package com.bmu1093a.quill.auth.service;
 
-import com.bmu1093a.quill.auth.error.UserNotFoundException;
-import com.bmu1093a.quill.auth.error.WrongPasswordException;
+import com.bmu1093a.quill.common.exception.UserNotFoundException;
+import com.bmu1093a.quill.common.exception.WrongPasswordException;
 import com.bmu1093a.quill.auth.model.dto.login.LoginRequestDto;
 import com.bmu1093a.quill.auth.model.dto.login.LoginResponseDto;
 import com.bmu1093a.quill.auth.model.dto.register.RegisterRequestDto;
@@ -10,6 +10,7 @@ import com.bmu1093a.quill.auth.model.enumeration.Role;
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
 import com.bmu1093a.quill.auth.util.JwtUtil;
+import com.bmu1093a.quill.common.exception.EmailAlreadyExistsException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,7 @@ public class AuthService {
 
     public RegisterResponseDto register(RegisterRequestDto registerRequestDto) {
         if (userRepository.findByEmail(registerRequestDto.getEmail()).isPresent()) {
-            throw new RuntimeException("Email already exists");
+            throw new EmailAlreadyExistsException("Email already exists");
         }
 
         User user = User.builder()

@@ -1,9 +1,9 @@
 package com.bmu1093a.quill.profile.service;
 
-import com.bmu1093a.quill.auth.error.UserNotFoundException;
+
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
-import com.bmu1093a.quill.file.exception.FileOperationException;
+import com.bmu1093a.quill.common.exception.UnauthorizedActionException;
 import com.bmu1093a.quill.file.model.entity.FileRecord;
 import com.bmu1093a.quill.file.repo.FileRecordRepository;
 import com.bmu1093a.quill.profile.model.dto.ProfileRequestDto;
@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import com.bmu1093a.quill.common.exception.UserNotFoundException;
 
 import java.util.Optional;
 
@@ -57,7 +58,7 @@ public class ProfileService {
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
-            throw new FileOperationException("UNAUTHORIZED", "Authentication required");
+            throw new UnauthorizedActionException( "Authentication required");
         }
         String email = auth.getName();
         return userRepository.findByEmail(email)

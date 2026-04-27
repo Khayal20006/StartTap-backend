@@ -1,4 +1,4 @@
-package com.bmu1093a.quill.file.exception;
+package com.bmu1093a.quill.common.exception;
 
 import lombok.Getter;
 

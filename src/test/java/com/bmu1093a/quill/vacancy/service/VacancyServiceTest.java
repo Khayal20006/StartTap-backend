@@ -1,6 +1,7 @@
 package com.bmu1093a.quill.vacancy.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
+import com.bmu1093a.quill.common.exception.UnauthorizedActionException;
 import com.bmu1093a.quill.startup.model.entity.Startup;
 import com.bmu1093a.quill.startup.repository.StartupRepository;
 import com.bmu1093a.quill.vacancy.mapper.VacancyMapper;
@@ -42,16 +43,16 @@ class VacancyServiceTest {
         return User.builder().id(id).build();
     }
 
-    private Startup startup(Long ownerId) {
+    private Startup startup() {
         Startup s = new Startup();
-        s.setOwner(user(ownerId));
+        s.setOwner(user(1L));
         return s;
     }
 
-    private Vacancy vacancy(Long ownerId) {
+    private Vacancy vacancy() {
         Vacancy v = new Vacancy();
         Startup s = new Startup();
-        s.setOwner(user(ownerId));
+        s.setOwner(user(1L));
         v.setStartup(s);
         return v;
     }
@@ -61,7 +62,7 @@ class VacancyServiceTest {
     @Test
     void getVacancy_owner_true() {
         User user = user(1L);
-        Vacancy vacancy = vacancy(1L);
+        Vacancy vacancy = vacancy();
 
         when(vacancyRepository.findById(1L))
                 .thenReturn(Optional.of(vacancy));
@@ -80,7 +81,7 @@ class VacancyServiceTest {
     @Test
     void getVacancy_owner_false() {
         User user = user(2L);
-        Vacancy vacancy = vacancy(1L);
+        Vacancy vacancy = vacancy();
 
         when(vacancyRepository.findById(1L))
                 .thenReturn(Optional.of(vacancy));
@@ -145,7 +146,7 @@ class VacancyServiceTest {
     void createVacancy_success() {
         User user = user(1L);
 
-        Startup startup = startup(1L);
+        Startup startup = startup();
 
         VacancyRequestDto dto = new VacancyRequestDto();
         dto.setStartupId(1L);
@@ -173,7 +174,7 @@ class VacancyServiceTest {
     void createVacancy_shouldThrow_whenNotOwner() {
         User user = user(2L);
 
-        Startup startup = startup(1L);
+        Startup startup = startup();
 
         VacancyRequestDto dto = new VacancyRequestDto();
         dto.setStartupId(1L);
@@ -194,7 +195,7 @@ class VacancyServiceTest {
     void updateVacancy_success() {
         User user = user(1L);
 
-        Vacancy vacancy = vacancy(1L);
+        Vacancy vacancy = vacancy();
 
         VacancyUpdateRequestDto dto = new VacancyUpdateRequestDto();
         dto.setTitle("New Title");
@@ -222,7 +223,7 @@ class VacancyServiceTest {
     void updateVacancy_shouldThrow_whenNotOwner() {
         User user = user(2L);
 
-        Vacancy vacancy = vacancy(1L);
+        Vacancy vacancy = vacancy();
 
         VacancyUpdateRequestDto dto = new VacancyUpdateRequestDto();
 
@@ -234,5 +235,17 @@ class VacancyServiceTest {
 
         assertThrows(RuntimeException.class,
                 () -> vacancyService.updateVacancy(1L, dto));
+    }
+    @Test
+    void getVacancy_unauthenticated_isOwner_false() {
+        Vacancy vacancy = vacancy();
+        when(vacancyRepository.findById(1L)).thenReturn(Optional.of(vacancy));
+        when(vacancyMapper.toDto(vacancy)).thenReturn(new VacancyResponseDto());
+        when(userLookupService.getCurrentUser())
+                .thenThrow(new UnauthorizedActionException("Auth required"));
+
+        VacancyResponseDto result = vacancyService.getVacancy(1L);
+
+        assertFalse(result.getIsOwner());
     }
 }

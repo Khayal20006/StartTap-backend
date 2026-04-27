@@ -1,7 +1,7 @@
 package com.bmu1093a.quill.auth.service;
 
-import com.bmu1093a.quill.auth.error.UserNotFoundException;
-import com.bmu1093a.quill.auth.error.WrongPasswordException;
+import com.bmu1093a.quill.common.exception.UserNotFoundException;
+import com.bmu1093a.quill.common.exception.WrongPasswordException;
 import com.bmu1093a.quill.auth.model.dto.login.LoginRequestDto;
 import com.bmu1093a.quill.auth.model.dto.register.RegisterRequestDto;
 import com.bmu1093a.quill.auth.model.entity.User;
