@@ -3,6 +3,8 @@ package com.bmu1093a.quill.vacancy.controller;
 import com.bmu1093a.quill.vacancy.model.dto.response.VacancyApplicantResponseDto;
 import com.bmu1093a.quill.vacancy.model.dto.response.VacancyApplicationResponseDto;
 import com.bmu1093a.quill.vacancy.service.VacancyApplicationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,9 +28,15 @@ public class VacancyApplicationController {
 
     @GetMapping("{vacancyId}/applications")
     public ResponseEntity<List<VacancyApplicantResponseDto>> getApplicationsByVacancyId(@PathVariable Long vacancyId) {
-
         return ResponseEntity.status(HttpStatus.OK).body(vacancyApplicationService.getApplicationsByVacancyId(vacancyId));
     }
 
-
+    @Operation(summary = "Cancel vacancy application")
+    @ApiResponse(responseCode = "204", description = "Application cancelled successfully")
+    @ApiResponse(responseCode = "404", description = "Active application not found")
+    @PatchMapping("{vacancyId}/applications/cancel")
+    public ResponseEntity<Void> cancelVacancyApplication(@PathVariable Long vacancyId) {
+        vacancyApplicationService.cancelVacancyApplication(vacancyId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -2,8 +2,8 @@ package com.bmu1093a.quill.file.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
-import com.bmu1093a.quill.file.exception.FileOperationException;
-import com.bmu1093a.quill.file.exception.FileValidationException;
+import com.bmu1093a.quill.common.exception.FileOperationException;
+import com.bmu1093a.quill.common.exception.FileValidationException;
 import com.bmu1093a.quill.file.model.dto.FileUploadResponse;
 import com.bmu1093a.quill.file.model.entity.FileRecord;
 import com.bmu1093a.quill.file.repo.FileRecordRepository;
@@ -18,7 +18,9 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,7 +54,6 @@ class CloudinaryFileUploadServiceTest {
     void setUp() {
         SecurityContextHolder.clearContext();
 
-        // 🔥 FIX: Proper Spring Security authentication (IMPORTANT)
         Authentication auth = new UsernamePasswordAuthenticationToken(
                 EMAIL,
                 null,
@@ -131,15 +132,17 @@ class CloudinaryFileUploadServiceTest {
         when(userRepository.findByEmail(EMAIL))
                 .thenReturn(Optional.empty());
 
-        assertThrows(FileOperationException.class,
-                () -> service.uploadFile(validFile()));
+        MultipartFile file = validFile();
+        assertThrows(FileOperationException.class, () -> service.uploadFile(file));
     }
 
     // ---------------- DELETE TESTS ----------------
 
     @Test
-    void deleteFile_success() {
+    void deleteFile_success() throws IOException {
         mockCloudinary();
+
+        when(uploader.destroy(anyString(), anyMap())).thenReturn(Map.of());
 
         FileRecord fileRecord = FileRecord.builder()
                 .publicId("cv_123")

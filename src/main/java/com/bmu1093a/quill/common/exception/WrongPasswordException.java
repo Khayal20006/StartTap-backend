@@ -1,4 +1,4 @@
-package com.bmu1093a.quill.auth.error;
+package com.bmu1093a.quill.common.exception;
 
 public class WrongPasswordException extends RuntimeException{
     public WrongPasswordException(String message) {

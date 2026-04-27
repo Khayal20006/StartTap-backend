@@ -1,12 +1,15 @@
 package com.bmu1093a.quill.vacancy.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
-import com.bmu1093a.quill.auth.repository.UserRepository;
+import com.bmu1093a.quill.common.exception.AlreadyAppliedException;
+import com.bmu1093a.quill.common.exception.ResourceNotFoundException;
+import com.bmu1093a.quill.common.exception.VacancyNotActiveException;
 import com.bmu1093a.quill.vacancy.mapper.VacancyApplicationMapper;
 import com.bmu1093a.quill.vacancy.model.dto.response.VacancyApplicantResponseDto;
 import com.bmu1093a.quill.vacancy.model.dto.response.VacancyApplicationResponseDto;
 import com.bmu1093a.quill.vacancy.model.entity.Vacancy;
 import com.bmu1093a.quill.vacancy.model.entity.VacancyApplication;
+import com.bmu1093a.quill.vacancy.model.entity.enumeration.ApplicationStatus;
 import com.bmu1093a.quill.vacancy.respository.VacancyApplicationRepository;
 import com.bmu1093a.quill.vacancy.respository.VacancyRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +24,6 @@ public class VacancyApplicationService {
     private final VacancyApplicationRepository vacancyApplicationRepository;
     private final VacancyRepository vacancyRepository;
     private final VacancyApplicationMapper vacancyApplicationMapper;
-    private final UserRepository userRepository;
     private final UserLookupService userLookupService;
 
     public VacancyApplicationResponseDto applyToVacancy(
@@ -33,24 +35,23 @@ public class VacancyApplicationService {
         Long userId = currentUser.getId();
 
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new RuntimeException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
 
         if (Boolean.FALSE.equals(vacancy.getIsActive())) {
-            throw new IllegalStateException("Vacancy is not active");
+            throw new VacancyNotActiveException("Vacancy is not active");
         }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
         boolean alreadyApplied = vacancyApplicationRepository
-                .existsByUserIdAndVacancyId(userId, vacancyId);
+                .existsByUser_IdAndVacancy_IdAndStatusIn(
+                        userId, vacancyId,
+                        List.of(ApplicationStatus.PENDING, ApplicationStatus.ACCEPTED)
+                );
 
         if (alreadyApplied) {
-            throw new IllegalStateException("Already applied");
+            throw new AlreadyAppliedException("Already applied");
         }
 
         VacancyApplication vacancyApplication = VacancyApplication.builder()
-                .user(user)
+                .user(currentUser)
                 .vacancy(vacancy)
                 .build();
 
@@ -67,5 +68,17 @@ public class VacancyApplicationService {
         return vacancyApplications.stream().map(vacancyApplicationMapper::toVacancyApplicantDtoResponse).toList();
     }
 
+    public void cancelVacancyApplication(Long vacancyId) {
+        User currentUser = userLookupService.getCurrentUser();
+
+        VacancyApplication application = vacancyApplicationRepository
+                .findByVacancy_IdAndUser_IdAndStatus(
+                        vacancyId, currentUser.getId(), ApplicationStatus.PENDING
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Active application not found"));
+
+        application.setStatus(ApplicationStatus.CANCELED);
+        vacancyApplicationRepository.save(application);
+    }
 
 }

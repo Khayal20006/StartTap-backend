@@ -2,8 +2,8 @@ package com.bmu1093a.quill.file.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
-import com.bmu1093a.quill.file.exception.FileOperationException;
-import com.bmu1093a.quill.file.exception.FileValidationException;
+import com.bmu1093a.quill.common.exception.FileOperationException;
+import com.bmu1093a.quill.common.exception.FileValidationException;
 import com.bmu1093a.quill.file.model.dto.FileUploadResponse;
 import com.bmu1093a.quill.file.model.entity.FileRecord;
 import com.bmu1093a.quill.file.repo.FileRecordRepository;
@@ -24,7 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -45,6 +45,12 @@ public class CloudinaryFileUploadService implements FileUploadService {
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024L;
     private static final int CONNECT_TIMEOUT = 5000;
     private static final int READ_TIMEOUT = 10000;
+    private static final String EXT_PDF = ".pdf";
+    private static final String EXT_DOCX = ".docx";
+    private static final String EXT_DOC = ".doc";
+    private static final String FILE_NOT_FOUND = "FILE_NOT_FOUND";
+    private static final String MIME_WORDPROCESSING = "wordprocessingml";
+    private static final String MIME_MSWORD = "msword";
 
     private final Cloudinary cloudinary;
     private final Tika tika;
@@ -70,13 +76,13 @@ public class CloudinaryFileUploadService implements FileUploadService {
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new FileOperationException("USER_NOT_FOUND", "User not found: " + email));
 
-        String originalName = file.getOriginalFilename();
+        String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown";
         String extension = getFileExtension(originalName);
         String publicIdWithExtension = "cv_" + UUID.randomUUID().toString().replace("-", "") + extension;
 
         Map<String, Object> uploadResult;
         try {
-            uploadResult =  cloudinary.uploader().upload(
+            uploadResult = cloudinary.uploader().upload(
                     fileBytes,
                     ObjectUtils.asMap(
                             "folder", "quill/cv",
@@ -110,7 +116,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
         String email = getCurrentUserEmail();
         FileRecord fileRecord = fileRecordRepository
                 .findByPublicIdAndDeletedFalse(publicId)
-                .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "File not found: " + publicId));
+                .orElseThrow(() -> new FileOperationException(FILE_NOT_FOUND, "File not found: " + publicId));
 
         if (!fileRecord.getUser().getEmail().equals(email)) {
             throw new FileOperationException("ACCESS_DENIED", "Permission denied");
@@ -132,7 +138,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
         String email = getCurrentUserEmail();
         FileRecord fileRecord = fileRecordRepository
                 .findFirstByUserEmailAndDeletedFalseOrderByIdDesc(email)
-                .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "No active CV found in your profile"));
+                .orElseThrow(() -> new FileOperationException(FILE_NOT_FOUND, "No active CV found in your profile"));
 
         return downloadAndPrepareResponse(fileRecord);
     }
@@ -142,7 +148,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
         String email = getCurrentUserEmail();
         FileRecord fileRecord = fileRecordRepository
                 .findFirstByUserEmailAndDeletedFalseOrderByIdDesc(email)
-                .orElseThrow(() -> new FileOperationException("FILE_NOT_FOUND", "No active CV found in your profile"));
+                .orElseThrow(() -> new FileOperationException(FILE_NOT_FOUND, "No active CV found in your profile"));
 
         return new FileUploadResponse(fileRecord.getUrl(), fileRecord.getPublicId(), fileRecord.getOriginalFileName());
     }
@@ -158,7 +164,12 @@ public class CloudinaryFileUploadService implements FileUploadService {
         byte[] bytes = downloadFromUrl(url);
         MediaType contentType = determineContentType(fileName);
         String finalFileName = ensureExtension(fileName, contentType);
-        String contentDisposition = String.format("attachment; filename=\"%s\"", finalFileName);
+
+
+        String asciiName = finalFileName.replaceAll("[^\\x00-\\x7F]", "_");
+        String encodedName = java.net.URLEncoder.encode(finalFileName, java.nio.charset.StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        String contentDisposition = "attachment; filename=\"" + asciiName + "\"; filename*=UTF-8''" + encodedName;
 
         return ResponseEntity.ok()
                 .contentType(contentType)
@@ -167,8 +178,7 @@ public class CloudinaryFileUploadService implements FileUploadService {
     }
 
     private byte[] downloadFromUrl(String urlString) throws IOException {
-        URL fileUrl = new URL(urlString);
-        HttpURLConnection connection = (HttpURLConnection) fileUrl.openConnection();
+        HttpURLConnection connection = (HttpURLConnection) URI.create(urlString).toURL().openConnection();
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(CONNECT_TIMEOUT);
         connection.setReadTimeout(READ_TIMEOUT);
@@ -186,11 +196,11 @@ public class CloudinaryFileUploadService implements FileUploadService {
 
     private MediaType determineContentType(String fileName) {
         String lowerName = fileName.toLowerCase();
-        if (lowerName.endsWith(".pdf")) {
+        if (lowerName.endsWith(EXT_PDF)) {
             return MediaType.APPLICATION_PDF;
-        } else if (lowerName.endsWith(".docx")) {
+        } else if (lowerName.endsWith(EXT_DOCX)) {
             return MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        } else if (lowerName.endsWith(".doc")) {
+        } else if (lowerName.endsWith(EXT_DOC)) {
             return MediaType.parseMediaType("application/msword");
         }
         return MediaType.APPLICATION_OCTET_STREAM;
@@ -201,11 +211,11 @@ public class CloudinaryFileUploadService implements FileUploadService {
             return fileName;
         }
         if (contentType.equals(MediaType.APPLICATION_PDF)) {
-            return fileName + ".pdf";
-        } else if (contentType.toString().contains("wordprocessingml")) {
-            return fileName + ".docx";
-        } else if (contentType.toString().contains("msword")) {
-            return fileName + ".doc";
+            return fileName + EXT_PDF;
+        } else if (contentType.toString().contains(MIME_WORDPROCESSING)) {
+            return fileName + EXT_DOCX;
+        } else if (contentType.toString().contains(MIME_MSWORD)) {
+            return fileName + EXT_DOC;
         }
         return fileName;
     }
@@ -233,9 +243,10 @@ public class CloudinaryFileUploadService implements FileUploadService {
             detectedType = tika.detect(is);
         }
 
-        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        String originalFilename = file.getOriginalFilename();
+        String fileName = originalFilename != null ? originalFilename.toLowerCase() : "";
         boolean isAllowedMime = ALLOWED_MIME_TYPES.contains(detectedType);
-        boolean isAllowedExtension = fileName.endsWith(".pdf") || fileName.endsWith(".docx") || fileName.endsWith(".doc");
+        boolean isAllowedExtension = fileName.endsWith(EXT_PDF) || fileName.endsWith(EXT_DOCX) || fileName.endsWith(EXT_DOC);
 
         if (!isAllowedMime && !isAllowedExtension) {
             throw new FileValidationException("INVALID_FILE_TYPE", "Invalid file type detected: " + detectedType);

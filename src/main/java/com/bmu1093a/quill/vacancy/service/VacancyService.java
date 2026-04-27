@@ -1,6 +1,8 @@
 package com.bmu1093a.quill.vacancy.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
+import com.bmu1093a.quill.common.exception.ResourceNotFoundException;
+import com.bmu1093a.quill.common.exception.UnauthorizedActionException;
 import com.bmu1093a.quill.startup.model.entity.Startup;
 import com.bmu1093a.quill.startup.repository.StartupRepository;
 import com.bmu1093a.quill.vacancy.mapper.VacancyMapper;
@@ -9,6 +11,7 @@ import com.bmu1093a.quill.vacancy.model.dto.request.VacancyUpdateRequestDto;
 import com.bmu1093a.quill.vacancy.model.dto.response.VacancyResponseDto;
 import com.bmu1093a.quill.vacancy.model.entity.Vacancy;
 import com.bmu1093a.quill.vacancy.respository.VacancyRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +29,7 @@ public class VacancyService {
     private User getCurrentUserOrNull() {
         try {
             return userLookupService.getCurrentUser();
-        } catch (Exception e) {
+        } catch (UnauthorizedActionException e) {
             return null;
         }
     }
@@ -34,7 +37,8 @@ public class VacancyService {
 
     public VacancyResponseDto getVacancy(Long id) {
 
-        Vacancy vacancy = vacancyRepository.findById(id).orElseThrow(() -> new RuntimeException("Vacancy not found"));
+        Vacancy vacancy = vacancyRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+
 
         VacancyResponseDto vacancyResponseDto = vacancyMapper.toDto(vacancy);
 
@@ -67,12 +71,12 @@ public class VacancyService {
         User user = userLookupService.getCurrentUser();
 
 
-        Startup startup = startupRepository.findById(vacancyRequestDto.getStartupId()).orElseThrow(
-                () -> new RuntimeException("Startup not found")
-        );
+        Startup startup = startupRepository.findById(vacancyRequestDto.getStartupId()).orElseThrow(() -> new ResourceNotFoundException("Startup not found"));
+
 
         if (!startup.getOwner().getId().equals(user.getId())) {
-            throw new RuntimeException("You are not the owner of this startup!!!");
+            throw new UnauthorizedActionException("You are not the owner of this startup");
+
         }
 
         Vacancy vacancy = Vacancy.builder()
@@ -87,16 +91,17 @@ public class VacancyService {
         return vacancyMapper.toDto(vacancy);
     }
 
+    @Transactional
     public VacancyResponseDto updateVacancy(Long id, VacancyUpdateRequestDto dto) {
 
         User currentUser = userLookupService.getCurrentUser();
 
         Vacancy vacancy = vacancyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
 
         // 🔐 Security check
         if (!vacancy.getStartup().getOwner().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("You are not allowed to update this vacancy");
+            throw new UnauthorizedActionException("You are not allowed to update this vacancy");
         }
 
         // ✏️ Update only allowed fields
@@ -120,4 +125,6 @@ public class VacancyService {
 
         return vacancyMapper.toDto(vacancy);
     }
+
+
 }

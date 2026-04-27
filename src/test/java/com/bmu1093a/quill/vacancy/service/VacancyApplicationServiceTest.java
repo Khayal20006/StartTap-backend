@@ -1,12 +1,15 @@
 package com.bmu1093a.quill.vacancy.service;
 
 import com.bmu1093a.quill.auth.model.entity.User;
-import com.bmu1093a.quill.auth.repository.UserRepository;
+import com.bmu1093a.quill.common.exception.AlreadyAppliedException;
+import com.bmu1093a.quill.common.exception.ResourceNotFoundException;
+import com.bmu1093a.quill.common.exception.VacancyNotActiveException;
 import com.bmu1093a.quill.vacancy.mapper.VacancyApplicationMapper;
 import com.bmu1093a.quill.vacancy.model.dto.response.VacancyApplicantResponseDto;
 import com.bmu1093a.quill.vacancy.model.dto.response.VacancyApplicationResponseDto;
 import com.bmu1093a.quill.vacancy.model.entity.Vacancy;
 import com.bmu1093a.quill.vacancy.model.entity.VacancyApplication;
+import com.bmu1093a.quill.vacancy.model.entity.enumeration.ApplicationStatus;
 import com.bmu1093a.quill.vacancy.respository.VacancyApplicationRepository;
 import com.bmu1093a.quill.vacancy.respository.VacancyRepository;
 import org.junit.jupiter.api.Test;
@@ -33,16 +36,13 @@ class VacancyApplicationServiceTest {
     private VacancyApplicationMapper vacancyApplicationMapper;
 
     @Mock
-    private UserRepository userRepository;
-
-    @Mock
     private UserLookupService userLookupService;
 
     @InjectMocks
     private VacancyApplicationService service;
 
-    private User user(Long id) {
-        return User.builder().id(id).build();
+    private User user() {
+        return User.builder().id(1L).build();
     }
 
     private Vacancy vacancy(boolean active) {
@@ -55,30 +55,19 @@ class VacancyApplicationServiceTest {
 
     @Test
     void applyToVacancy_success() {
-        User user = user(1L);
+        User user = user();
         Vacancy vacancy = vacancy(true);
 
-
-        when(userLookupService.getCurrentUser())
-                .thenReturn(user);
-
-        when(vacancyRepository.findById(1L))
-                .thenReturn(Optional.of(vacancy));
-
-        when(userRepository.findById(1L))
-                .thenReturn(Optional.of(user));
-
-        when(vacancyApplicationRepository.existsByUserIdAndVacancyId(1L, 1L))
-                .thenReturn(false);
-
+        when(userLookupService.getCurrentUser()).thenReturn(user);
+        when(vacancyRepository.findById(1L)).thenReturn(Optional.of(vacancy));
+        when(vacancyApplicationRepository.existsByUser_IdAndVacancy_IdAndStatusIn(
+                eq(1L), eq(1L), anyList())).thenReturn(false);
         when(vacancyApplicationRepository.save(any()))
                 .thenAnswer(inv -> inv.getArgument(0));
-
         when(vacancyApplicationMapper.toVacancyApplicationResponseDto(any()))
                 .thenReturn(new VacancyApplicationResponseDto());
 
-        VacancyApplicationResponseDto result =
-                service.applyToVacancy(1L);
+        VacancyApplicationResponseDto result = service.applyToVacancy(1L);
 
         assertNotNull(result);
         verify(vacancyApplicationRepository).save(any());
@@ -88,13 +77,10 @@ class VacancyApplicationServiceTest {
 
     @Test
     void applyToVacancy_shouldThrow_whenVacancyNotFound() {
-        when(userLookupService.getCurrentUser())
-                .thenReturn(user(1L));
+        when(userLookupService.getCurrentUser()).thenReturn(user());
+        when(vacancyRepository.findById(1L)).thenReturn(Optional.empty());
 
-        when(vacancyRepository.findById(1L))
-                .thenReturn(Optional.empty());
-
-        assertThrows(RuntimeException.class,
+        assertThrows(ResourceNotFoundException.class,
                 () -> service.applyToVacancy(1L));
     }
 
@@ -102,16 +88,10 @@ class VacancyApplicationServiceTest {
 
     @Test
     void applyToVacancy_shouldThrow_whenVacancyInactive() {
-        User user = user(1L);
-        Vacancy vacancy = vacancy(false);
+        when(userLookupService.getCurrentUser()).thenReturn(user());
+        when(vacancyRepository.findById(1L)).thenReturn(Optional.of(vacancy(false)));
 
-        when(userLookupService.getCurrentUser())
-                .thenReturn(user);
-
-        when(vacancyRepository.findById(1L))
-                .thenReturn(Optional.of(vacancy));
-
-        assertThrows(IllegalStateException.class,
+        assertThrows(VacancyNotActiveException.class,
                 () -> service.applyToVacancy(1L));
     }
 
@@ -119,22 +99,13 @@ class VacancyApplicationServiceTest {
 
     @Test
     void applyToVacancy_shouldThrow_whenAlreadyApplied() {
-        User user = user(1L);
-        Vacancy vacancy = vacancy(true);
+        User user = user();
+        when(userLookupService.getCurrentUser()).thenReturn(user);
+        when(vacancyRepository.findById(1L)).thenReturn(Optional.of(vacancy(true)));
+        when(vacancyApplicationRepository.existsByUser_IdAndVacancy_IdAndStatusIn(
+                eq(1L), eq(1L), anyList())).thenReturn(true);
 
-        when(userLookupService.getCurrentUser())
-                .thenReturn(user);
-
-        when(vacancyRepository.findById(1L))
-                .thenReturn(Optional.of(vacancy));
-
-        when(userRepository.findById(1L))
-                .thenReturn(Optional.of(user));
-
-        when(vacancyApplicationRepository.existsByUserIdAndVacancyId(1L, 1L))
-                .thenReturn(true);
-
-        assertThrows(IllegalStateException.class,
+        assertThrows(AlreadyAppliedException.class,
                 () -> service.applyToVacancy(1L));
     }
 
@@ -144,13 +115,46 @@ class VacancyApplicationServiceTest {
     void getApplicationsByVacancyId_success() {
         when(vacancyApplicationRepository.findVacancyApplicationsByVacancyId(1L))
                 .thenReturn(List.of(new VacancyApplication(), new VacancyApplication()));
-
         when(vacancyApplicationMapper.toVacancyApplicantDtoResponse(any()))
                 .thenReturn(new VacancyApplicantResponseDto());
 
-        List<VacancyApplicantResponseDto> result =
-                service.getApplicationsByVacancyId(1L);
+        List<VacancyApplicantResponseDto> result = service.getApplicationsByVacancyId(1L);
 
         assertEquals(2, result.size());
+    }
+
+    // ---------------- CANCEL SUCCESS ----------------
+
+    @Test
+    void cancelVacancyApplication_success() {
+        User user = user();
+        VacancyApplication application = VacancyApplication.builder()
+                .id(100L)
+                .user(user)
+                .status(ApplicationStatus.PENDING)
+                .build();
+
+        when(userLookupService.getCurrentUser()).thenReturn(user);
+        when(vacancyApplicationRepository.findByVacancy_IdAndUser_IdAndStatus(
+                1L, 1L, ApplicationStatus.PENDING))
+                .thenReturn(Optional.of(application));
+
+        assertDoesNotThrow(() -> service.cancelVacancyApplication(1L));
+        verify(vacancyApplicationRepository).save(application);
+    }
+
+    // ---------------- APPLICATION NOT FOUND ----------------
+
+    @Test
+    void cancelVacancyApplication_shouldThrow_whenNotFound() {
+        when(userLookupService.getCurrentUser()).thenReturn(user());
+        when(vacancyApplicationRepository.findByVacancy_IdAndUser_IdAndStatus(
+                1L, 1L, ApplicationStatus.PENDING))
+                .thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> service.cancelVacancyApplication(1L));
+
+        verify(vacancyApplicationRepository, never()).save(any());
     }
 }
