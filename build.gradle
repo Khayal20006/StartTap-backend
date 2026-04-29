@@ -81,23 +81,23 @@ test {
     finalizedBy jacocoTestReport
 }
 
-//jacocoTestReport {
-//    reports {
-//        xml.required = true
-//    }
-//}
-
 jacocoTestReport {
-    afterEvaluate {
-        classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, exclude: [
-                    '**/dto/**',
-                    '**/entity/**',
-                    '**/config/**'
-            ])
-        }))
+    reports {
+        xml.required = true
     }
 }
+
+//jacocoTestReport {
+//    afterEvaluate {
+//        classDirectories.setFrom(files(classDirectories.files.collect {
+//            fileTree(dir: it, exclude: [
+//                    '**/dto/**',
+//                    '**/entity/**',
+//                    '**/config/**'
+//            ])
+//        }))
+//    }
+//}
 
 tasks.named('test') {
     useJUnitPlatform()
