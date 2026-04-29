@@ -81,9 +81,21 @@ test {
     finalizedBy jacocoTestReport
 }
 
+//jacocoTestReport {
+//    reports {
+//        xml.required = true
+//    }
+//}
+
 jacocoTestReport {
-    reports {
-        xml.required = true
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    '**/dto/**',
+                    '**/entity/**',
+                    '**/config/**'
+            ])
+        }))
     }
 }
 

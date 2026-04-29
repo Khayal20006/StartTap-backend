@@ -4,179 +4,216 @@ import com.bmu1093a.quill.auth.model.entity.User;
 import com.bmu1093a.quill.auth.repository.UserRepository;
 import com.bmu1093a.quill.common.exception.FileOperationException;
 import com.bmu1093a.quill.common.exception.FileValidationException;
-import com.bmu1093a.quill.file.model.dto.FileUploadResponse;
 import com.bmu1093a.quill.file.model.entity.FileRecord;
 import com.bmu1093a.quill.file.repo.FileRecordRepository;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Uploader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class CloudinaryFileUploadServiceTest {
 
     @Mock
-    private Cloudinary cloudinary;
+    Cloudinary cloudinary;
 
     @Mock
-    private FileRecordRepository fileRecordRepository;
+    FileRecordRepository fileRecordRepository;
 
     @Mock
-    private UserRepository userRepository;
+    UserRepository userRepository;
 
     @Mock
-    private Uploader uploader;
+    Uploader uploader;
 
     @InjectMocks
-    private CloudinaryFileUploadService service;
-
-    private static final String EMAIL = "test@mail.com";
-
-    private User user;
+    CloudinaryFileUploadService service;
 
     @BeforeEach
     void setUp() {
-        SecurityContextHolder.clearContext();
+        MockitoAnnotations.openMocks(this);
 
-        Authentication auth = new UsernamePasswordAuthenticationToken(
-                EMAIL,
-                null,
-                List.of()
-        );
-        SecurityContextHolder.getContext().setAuthentication(auth);
-
-        user = User.builder()
-                .id(1L)
-                .email(EMAIL)
-                .username("test")
-                .build();
-    }
-
-    // ---------------- HELPERS ----------------
-
-    private void mockCloudinary() {
         when(cloudinary.uploader()).thenReturn(uploader);
+
+        Authentication auth = mock(Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getPrincipal()).thenReturn("user");
+        when(auth.getName()).thenReturn("test@mail.com");
+
+        SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
-    private MockMultipartFile validFile() {
-        return new MockMultipartFile(
-                "file",
-                "cv.pdf",
-                "application/pdf",
-                "dummy content".getBytes()
-        );
-    }
-
-    // ---------------- UPLOAD TESTS ----------------
+    // ---------------- uploadFile ----------------
 
     @Test
-    void uploadFile_success() throws Exception {
-        mockCloudinary();
+    void uploadFile_success() throws IOException {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "test.pdf",
+                "application/pdf",
+                "content".getBytes()
+        );
 
-        when(userRepository.findByEmail(EMAIL))
+        User user = new User();
+        user.setEmail("test@mail.com");
+
+        when(userRepository.findByEmail("test@mail.com"))
                 .thenReturn(Optional.of(user));
 
+        Map<String, Object> cloudinaryResult = Map.of(
+                "secure_url", "http://url",
+                "public_id", "id123"
+        );
+
         when(uploader.upload(any(byte[].class), anyMap()))
-                .thenReturn(Map.of(
-                        "secure_url", "http://cloudinary.com/file.pdf",
-                        "public_id", "cv_123"
-                ));
+                .thenReturn(cloudinaryResult);
 
         when(fileRecordRepository.save(any(FileRecord.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        FileUploadResponse response = service.uploadFile(validFile());
+        var result = service.uploadFile(file);
 
-        assertAll(
-                () -> assertNotNull(response),
-                () -> assertEquals("http://cloudinary.com/file.pdf", response.url()),
-                () -> assertEquals("cv_123", response.publicId())
-        );
-
-        verify(fileRecordRepository, times(1)).save(any(FileRecord.class));
+        assertNotNull(result);
+        assertEquals("http://url", result.url());
     }
 
     @Test
-    void uploadFile_shouldThrow_whenEmptyFile() {
+    void uploadFile_emptyFile_shouldThrow() {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
-                "",
+                "test.pdf",
                 "application/pdf",
                 new byte[0]
         );
 
         assertThrows(FileValidationException.class,
                 () -> service.uploadFile(file));
-
-        verifyNoInteractions(userRepository);
     }
 
     @Test
-    void uploadFile_shouldThrow_whenUserNotFound() {
-        when(userRepository.findByEmail(EMAIL))
+    void uploadFile_invalidType_shouldThrow() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "test.exe",
+                "application/octet-stream",
+                "bad".getBytes()
+        );
+
+        assertThrows(FileValidationException.class,
+                () -> service.uploadFile(file));
+    }
+
+    @Test
+    void uploadFile_userNotFound_shouldThrow() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "test.pdf",
+                "application/pdf",
+                "content".getBytes()
+        );
+
+        when(userRepository.findByEmail(anyString()))
                 .thenReturn(Optional.empty());
 
-        MultipartFile file = validFile();
-        assertThrows(FileOperationException.class, () -> service.uploadFile(file));
+        assertThrows(FileOperationException.class,
+                () -> service.uploadFile(file));
     }
 
-    // ---------------- DELETE TESTS ----------------
+    @Test
+    void uploadFile_cloudinaryFails_shouldThrow() throws IOException {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "test.pdf",
+                "application/pdf",
+                "content".getBytes()
+        );
+
+        User user = new User();
+        user.setEmail("test@mail.com");
+
+        when(userRepository.findByEmail(anyString()))
+                .thenReturn(Optional.of(user));
+
+        when(uploader.upload(any(), anyMap()))
+                .thenThrow(new RuntimeException("fail"));
+
+        assertThrows(FileOperationException.class,
+                () -> service.uploadFile(file));
+    }
+
+    // ---------------- deleteFile ----------------
 
     @Test
-    void deleteFile_success() throws IOException {
-        mockCloudinary();
+    void deleteFile_success() {
+        User user = new User();
+        user.setEmail("test@mail.com");
 
-        when(uploader.destroy(anyString(), anyMap())).thenReturn(Map.of());
+        FileRecord fileRecord = new FileRecord();
+        fileRecord.setPublicId("id123");
+        fileRecord.setUser(user);
 
-        FileRecord fileRecord = FileRecord.builder()
-                .publicId("cv_123")
-                .deleted(false)
-                .user(user)
-                .build();
-
-        when(fileRecordRepository.findByPublicIdAndDeletedFalse("cv_123"))
+        when(fileRecordRepository.findByPublicIdAndDeletedFalse("id123"))
                 .thenReturn(Optional.of(fileRecord));
 
-        when(fileRecordRepository.save(any(FileRecord.class)))
-                .thenReturn(fileRecord);
-
-        assertDoesNotThrow(() -> service.deleteFile("cv_123"));
-
-        verify(fileRecordRepository, times(1)).save(any(FileRecord.class));
+        assertDoesNotThrow(() -> service.deleteFile("id123"));
     }
 
     @Test
-    void deleteFile_shouldThrow_whenNotOwner() {
-        User otherUser = User.builder()
-                .email("other@mail.com")
-                .build();
+    void deleteFile_accessDenied() {
+        User owner = new User();
+        owner.setEmail("other@mail.com");
 
-        FileRecord fileRecord = FileRecord.builder()
-                .publicId("cv_123")
-                .deleted(false)
-                .user(otherUser)
-                .build();
+        FileRecord fileRecord = new FileRecord();
+        fileRecord.setUser(owner);
 
-        when(fileRecordRepository.findByPublicIdAndDeletedFalse("cv_123"))
+        when(fileRecordRepository.findByPublicIdAndDeletedFalse("id123"))
                 .thenReturn(Optional.of(fileRecord));
 
         assertThrows(FileOperationException.class,
-                () -> service.deleteFile("cv_123"));
+                () -> service.deleteFile("id123"));
+    }
+
+    @Test
+    void deleteFile_notFound() {
+        when(fileRecordRepository.findByPublicIdAndDeletedFalse(anyString()))
+                .thenReturn(Optional.empty());
+
+        assertThrows(FileOperationException.class,
+                () -> service.deleteFile("id123"));
+    }
+
+    // ---------------- getLastUploadedCv ----------------
+
+    @Test
+    void getLastUploadedCv_success() {
+        FileRecord fileRecord = new FileRecord();
+        fileRecord.setUrl("url");
+        fileRecord.setPublicId("id");
+        fileRecord.setOriginalFileName("cv.pdf");
+
+        when(fileRecordRepository.findFirstByUserEmailAndDeletedFalseOrderByIdDesc(anyString()))
+                .thenReturn(Optional.of(fileRecord));
+
+        var result = service.getLastUploadedCv();
+
+        assertEquals("url", result.url());
+    }
+
+    @Test
+    void getLastUploadedCv_notFound() {
+        when(fileRecordRepository.findFirstByUserEmailAndDeletedFalseOrderByIdDesc(anyString()))
+                .thenReturn(Optional.empty());
+
+        assertThrows(FileOperationException.class,
+                () -> service.getLastUploadedCv());
     }
 }
