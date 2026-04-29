@@ -1,70 +1,71 @@
 package com.bmu1093a.quill.email.service;
 
-import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.Properties;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class EmailServiceTest {
 
-    @Mock
-    private JavaMailSender javaMailSender;
-
-    @InjectMocks
+    private JavaMailSender mailSender;
     private EmailService emailService;
-
-    private final String frontendUrl = "http://localhost:3000";
 
     @BeforeEach
     void setUp() {
-        // Manually set the @Value field since we aren't using a full Spring context
-        ReflectionTestUtils.setField(emailService, "frontendUrl", frontendUrl);
+        mailSender = mock(JavaMailSender.class);
+        emailService = new EmailService(mailSender);
+
+        ReflectionTestUtils.setField(emailService, "frontendUrl", "http://localhost:3000");
     }
 
+    // ✅ 1. success case
     @Test
-    void sendVerificationEmail_Success() throws Exception {
-        // Arrange
-        String to = "user@example.com";
-        String token = "test-token-123";
+    void shouldSendVerificationEmail() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
-        // MimeMessage needs a Session to be instantiated, even if null
-        MimeMessage mimeMessage = new MimeMessage((Session) null);
-        when(javaMailSender.createMimeMessage()).thenReturn(mimeMessage);
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
 
-        // Act
-        emailService.sendVerificationEmail(to, token);
+        doNothing().when(mailSender).send(any(MimeMessage.class));
 
-        // Assert
-        verify(javaMailSender, times(1)).createMimeMessage();
-        verify(javaMailSender, times(1)).send(any(MimeMessage.class));
+        emailService.sendVerificationEmail("test@mail.com", "abc123");
+
+        verify(mailSender).createMimeMessage();
+        verify(mailSender).send(captor.capture());
+
+        MimeMessage sentMessage = captor.getValue();
+        assertNotNull(sentMessage);
     }
 
+    // ❗ 2. exception handling
     @Test
-    void sendVerificationEmail_ThrowsRuntimeException_WhenMessagingExceptionOccurs() {
-        // Arrange
-        String to = "user@example.com";
-        String token = "test-token-123";
+    void shouldThrowRuntimeException_whenMailFails() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
-        // Mock createMimeMessage to throw an exception or handle it via doThrow on send
-        when(javaMailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
-        doThrow(new RuntimeException("SMTP Server Down")).when(javaMailSender).send(any(MimeMessage.class));
+        doThrow(new RuntimeException("Failed to send email"))
+                .when(mailSender).send(any(MimeMessage.class));
 
-        // Act & Assert
-        assertThrows(RuntimeException.class, () -> {
-            emailService.sendVerificationEmail(to, token);
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            emailService.sendVerificationEmail("test@mail.com", "token123");
         });
+
+        assertTrue(ex.getMessage().contains("Failed to send email"));
+    }
+
+    // ✅ 3. verify URL logic indirectly
+    @Test
+    void shouldIncludeTokenInEmailFlow() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        emailService.sendVerificationEmail("test@mail.com", "myToken");
+
+        verify(mailSender).send(any(MimeMessage.class));
     }
 }

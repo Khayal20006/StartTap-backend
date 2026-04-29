@@ -1,5 +1,6 @@
-package com.bmu1093a.quill.common.exception;
+package com.bmu1093a.quill.common;
 
+import com.bmu1093a.quill.common.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
